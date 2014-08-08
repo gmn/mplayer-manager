@@ -1,0 +1,23 @@
+// mplayermanager
+
+X
+X config.json    - local database for config
+X movies.json    - database for just movies
+X 
+X search path for config: [$HOME,"$HOME/.mplayermanager/",'.']
+X
+X startup dialog that runs first time, prompting user for:
+X - location to store 'movies.json'
+X - location to store 'config.json'
+X 
+X way in commandline to change config options
+
+5 
+playlist: way to {create, edit, delete, execute} multiple playlists
+
+6
+way to abstract interface from control functions. This allows to create 2 iface modules:
+  1) commandline
+  2) browser
+
+
