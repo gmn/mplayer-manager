@@ -21,3 +21,45 @@ way to abstract interface from control functions. This allows to create 2 iface 
   2) browser
 
 
+* This module is intended to  be installed globally with 'npm install -g'
+
+* have a /usr/bin/watch script which calls 'node /lcaotion of watch.js'
+
+* interactive installation of run-script in /usr/bin/
+
+* even MORE intelligent path searching, using 'find'
+  algorithm: go through path list
+
+* array of paths in setup
+
+/*
+TODO:
+    X small client db support
+    X save time left off
+    X add new movies w/ cmdline, or other
+    X view list of prev watched, with dates
+    X mark a movie watched menu-option; saves finish_date; dont show
+    X set dvd should be auto-detect
+    - move 'vid' script into watch.js
+    - rememember options per movie
+    - manual re-ordering (prioritization)
+    - [u]nwatched menu option
+    - way to play watched movies
+    - TAB-completion <-- tab &/or getch() doesn't work in any input mode
+        TAB-completion control wishlist:
+        1 - press [w] Watch...; a prompt comes up. "watch what?> "
+        2 - press 'J', 
+        2b -then press TAB; available movies that start with J will appear in alphabetical order
+        3 - press ESC to clear the line
+        4 - press REturn to accept a choice
+        5 - press more letters to narrow it down some
+        6 - press up and down arrows to move selector, and ENTER to select
+    - explicit video size modifier menu option
+    - re-do ID system (just don't print _id AT ALL)
+    - playlists
+    - cmdline option to immediately add a file, determine its location automatically, and if its not in the path list, create a "dir" entry
+    - exactly the same as previous; then play the movie, all in one
+    - put on a lock when playing, so if external shell adds file, it prints
+      an error
+*/
+
