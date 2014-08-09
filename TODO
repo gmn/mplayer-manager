@@ -13,45 +13,39 @@ X
 X way in commandline to change config options
 
 * rewrite 2nd set of cmdline functions to not be dependent on argv[] specific locations: eg. argv[2], but use check_arg() instead
-
-5 
-playlist: way to {create, edit, delete, execute} multiple playlists
-
-6
-way to abstract interface from control functions. This allows to create 2 iface modules:
-  1) commandline
-  2) browser
+  so example usage this would allow: "watch -c ./custom_config.js -a new_movie new_movie_dir".  Can't do this now.
+    (note: you can make additional script: 'watchp' --> node ~/code/watch.js -c ./custom_conf.js')
 
 * movies can have optional DISPLAY_NAME that appears instead of their filename. If you edit the "name" of a file, it creates a display_name and shows that instead
 
 * rewrite the db format to include indexes, to simplify ordering them  (its buggy now)
   * also, 3-5 most recent watched
+  * also, time stats per-file. how many seconds did you spend watching a particular thing?
 
-* This module is intended to  be installed globally with 'npm install -g'
+* This module is intended to be installed globally with 'npm install -g'
 
 * have a /usr/bin/watch script which calls 'node /location_of_watch.js'
-
 * interactive installation of run-script in /usr/bin/
   - asks for root pass to install
 
 * even MORE intelligent path searching, using 'find /dir -name <file>'
-  algorithm: go through path list
+  algorithm: go through path list. 
+  * Or just get array of sub-dirs in each search-path, and look for the file in those.
 
-* array of paths in setup
+N ability to edit array of paths in setup
 
-/*
-TODO:
-    X small client db support
-    X save time left off
-    X add new movies w/ cmdline, or other
-    X view list of prev watched, with dates
-    X mark a movie watched menu-option; saves finish_date; dont show
-    X set dvd should be auto-detect
-    - move 'vid' script into watch.js
-    - rememember options per movie
-    - manual re-ordering (prioritization)
-    - [u]nwatched menu option
-    - way to play watched movies
+* playlist: way to {create, edit, delete, execute} multiple playlists
+
+* abstract interface from control functions. This allows to create 2 iface modules:
+  1) commandline
+  2) browser
+
+* move 'vid' script into watch.js
+
+* rememember options per movie
+
+* way to play watched movies
+
     - TAB-completion <-- tab &/or getch() doesn't work in any input mode
         TAB-completion control wishlist:
         1 - press [w] Watch...; a prompt comes up. "watch what?> "
@@ -61,12 +55,18 @@ TODO:
         4 - press REturn to accept a choice
         5 - press more letters to narrow it down some
         6 - press up and down arrows to move selector, and ENTER to select
-    - explicit video size modifier menu option
-    - re-do ID system (just don't print _id AT ALL)
-    - playlists
-    - cmdline option to immediately add a file, determine its location automatically, and if its not in the path list, create a "dir" entry
-    - exactly the same as previous; then play the movie, all in one
-    - put on a lock when playing, so if external shell adds file, it prints
-      an error
-*/
+
+* explicit video size modifier menu option
+
+* playlists
+
+- cmdline option to 
+    - IMMEDIATELY ADD A FILE, 
+    - DETERMINE ITS LOCATION AUTOMATICALLY, and if its not in the path list, 
+    - AUTOMATICALLY CREATE A "DIR" ENTRY
+
+- exactly the same as previous; then play the movie, all in one
+
+- put on a lock when running, so if external shell adds file, it prints an error
+
 
