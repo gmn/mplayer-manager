@@ -5,14 +5,21 @@
 // begin namespace
 (function() 
 {
+  var fs = require('fs');
+
   var lib = require( './lib.js' );
+  var type_of = lib.type_of;
+  var trunc_string = lib.trunc_string;
+
+  var queryable = require( 'queryable' );
+  var db = null;
 
   var spawn = require('child_process').spawn;
   var stdin = process.stdin;
   var stdout = process.stdout;
 
   var readline = require('readline');
-  var rl = null;
+  var rl = readline.createInterface( stdin, stdout );
 
   var read_options = 0;
   var continue_index = 0;
@@ -20,11 +27,6 @@
   var preplay_timeout = 1200;
   var vidplayer_silence = 1;
   var playing = 0;
-  var type_of = lib.type_of;
-  var trunc_string = lib.trunc_string;
-  var fs = require('fs');
-  var queryable = require( 'queryable' );
-  var db = null;
 
   // default config
   var config = {
@@ -53,7 +55,6 @@
   var print = function(str) {
     stdout.write( str );
   };
-
 
   /*
    * Menu class
@@ -117,54 +118,60 @@
   menu.play_movie = play_movie;
 
 
-debugger;
-
+  //
+  // setup the config
+  //
   var config_helper = require( './config_helper.js' );
   var cmdline_parser = require( './cmdline_parser.js' );
 
   // handle command line flags that affect config 
   cmdline_parser.check_cmdline( config );
 
-  // if default conf path exist, load config from there
+  // if default conf path exist, read the config from there
   config_helper.read_config( config );
 
-
+  // called after config setup complete
   function begin_execution()
   {
-    rl = readline.createInterface( stdin, stdout );
-    rl.setPrompt('watch> ');
-
-    rl.on('line', readline_line_function ).on('close', function() {
-      println('Have a great day!');
-      process.exit(0);
-    });
-    rl.resume();
-
+    // read the movies database
     db = queryable.open( config.movies_db_path );
 
     // get movies list
     reload_movies_list();
 
+    //
+    // startup the readline interface
+    //
+    rl.setPrompt('watch> ');
+
+    rl.on('line', readline_line_function ).on('close', function() {
+      println('Ctrl+D caught. Exiting.');
+      process.exit(0);
+    });
+    rl.resume();
+
     // cmdline opts that do something
     if ( cmdline_parser.execute_commands( db, menu ) ) 
     {
+      // if nothing happens as result of cmdline, show the menu
       menu.print();
       rl.prompt();
     }
   }
 
-  function after_interactive_dialog() {
-    config_helper.after_conf_setup( config );
-    begin_execution();
-  }
 
-  // 
+  // if we only have default config, run interactive script that allows user to customize it during creation
+  // - then begin execution  
   if ( !config || !config.autoconfig_done ) {
-    config_helper.do_interactive_setup( config, after_interactive_dialog, rl );
+    config_helper.do_interactive_setup( config, rl, function() {
+      config_helper.after_conf_setup( config );
+      begin_execution();
+    } );
   } else {
     begin_execution();
   }
 
+  // capture last second viewed from mplayer output
   function sec_from_mplayer_stream( m_stream ) 
   {
     var lines = m_stream.toString().split("\n");
@@ -183,7 +190,7 @@ debugger;
       return null;
 
     return terms[1];
-  }
+  } // sec_from_mplayer_stream
 
   function system( index, cmd, args_array )
   {
@@ -215,7 +222,7 @@ debugger;
 
       menu.startOverIndex = -1; // reset this always afterwards
     });
-  }
+  } // system
 
 
   function print_movies(line) 
@@ -245,7 +252,7 @@ debugger;
     }
     else
       continue_index = 0;
-  }
+  } // print_movies
 
   function print_watched_movies()
   {
@@ -264,7 +271,7 @@ debugger;
     }
     else
       watched_continue_index = 0;
-  }
+  } // print_watched_movies
 
   // searches through search paths, looking for file matching 'filename'
   // returns full path if found, null if not
@@ -275,7 +282,7 @@ debugger;
     var loc_paths = paths.slice(0);
 
     // add to path: xtra can be: string, array of strings
-    //if ( xtrapath && (type_of(xtrapath) === "string" || type_of(xtrapath) === "array") ) {
+    //if ( xtrapath && (type_of(xtrapath) === "string" || type_of(xtrapath) === "array") ) 
     if ( xtrapath && type_of(xtrapath) === "string" ) {
       //println( "adding xtra path: " + xtrapath.toString() );
       //loc_paths = loc_paths.concat( xtrapath );
@@ -305,7 +312,7 @@ debugger;
       return fullpath; // it'll throw (whatever that means) if path not found (note: throwing errors is fucking gay) 
     }
     return null;
-  }
+  } // find_file
 
   function play_movie( n, resume_sec )
   {
@@ -339,7 +346,7 @@ debugger;
     print( "running: vid \""+args.join('" "')+'"' );
 
     dotdotdot( preplay_timeout, function() { system( n, 'vid', args ); } );
-  }
+  } // play_movie
 
   function dotdotdot( timeout, func ) {
     if ( timeout <= 0 )

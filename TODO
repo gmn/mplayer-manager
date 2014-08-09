@@ -12,6 +12,8 @@ X - location to store 'config.json'
 X 
 X way in commandline to change config options
 
+* rewrite 2nd set of cmdline functions to not be dependent on argv[] specific locations: eg. argv[2], but use check_arg() instead
+
 5 
 playlist: way to {create, edit, delete, execute} multiple playlists
 
@@ -20,14 +22,19 @@ way to abstract interface from control functions. This allows to create 2 iface 
   1) commandline
   2) browser
 
+* movies can have optional DISPLAY_NAME that appears instead of their filename. If you edit the "name" of a file, it creates a display_name and shows that instead
+
+* rewrite the db format to include indexes, to simplify ordering them  (its buggy now)
+  * also, 3-5 most recent watched
 
 * This module is intended to  be installed globally with 'npm install -g'
 
-* have a /usr/bin/watch script which calls 'node /lcaotion of watch.js'
+* have a /usr/bin/watch script which calls 'node /location_of_watch.js'
 
 * interactive installation of run-script in /usr/bin/
+  - asks for root pass to install
 
-* even MORE intelligent path searching, using 'find'
+* even MORE intelligent path searching, using 'find /dir -name <file>'
   algorithm: go through path list
 
 * array of paths in setup

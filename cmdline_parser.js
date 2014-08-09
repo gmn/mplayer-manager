@@ -10,6 +10,9 @@
   var println = function(s){ process.stdout.write(s+"\n") }
   var exename = process.argv[1].substring( process.argv[1].lastIndexOf('/')+1, process.argv[1].length);
 
+  // flags checked for (and must be skipped later) in check_cmdline
+  var early_flags = ['-c','-k','-nc'];
+
   function check_cmdline( config )
   {
     function print_help()
@@ -26,6 +29,7 @@
       p( '-a <file> [dir]   add file, dir is optional' );
       p( '-l                play last played' );
       p( '-s                set directory file is in' );
+      p( '-nc               force-start a new config' );
       process.exit(0);
     }
 
@@ -71,6 +75,9 @@
       p = p + 3;
     }
 
+    if ( check_flag('-nc') ) {
+      config.config_path = undefined;
+    }
   }
   exports.check_cmdline = check_cmdline;
 
@@ -81,6 +88,7 @@
     if ( process.argv && process.argv.length > 2 ) 
     {
         var v = process.argv;
+
 
         if ( v[2].match( '-ci' ) ) {
             if ( v.length !== 5 ) {
@@ -227,6 +235,12 @@
             }
             else
             {
+                // flags already checked for, if present, run normally
+                for ( var i = 0; i < early_flags.length; i++ ) {
+                  if ( v[2].match( early_flags[i] ) )
+                    return true;
+                }
+
                 println( "dont know that one" );
                 process.exit(0);
             }

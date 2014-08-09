@@ -34,7 +34,7 @@
       if ( file.trim().length > 0 )
         var parsed_obj = JSON.parse( file );
     } catch(e) {
-      println( "\nDefault config not exist, creating.." );
+      println( "\nDefault config doesn't exist. Creating a new one:\n" );
       return;
     }
 
@@ -66,7 +66,7 @@
   }
   exports.after_conf_setup = after_conf_setup;
 
-  function do_interactive_setup( config, after_f, rl ) 
+  function do_interactive_setup( config, rl, after_f )
   {
     function entry(varname,question,next,def) 
     {
@@ -76,7 +76,7 @@
       this.defalt = def ? def : '';
 
       this.prompt = '?';
-      this.response_text = 'got: ';
+      this.response_text = ' --> got: ';
     }
     entry.prototype = {
       response: function(ans) {
@@ -87,7 +87,7 @@
 
         print( this.response_text )
         print('"'+config[this.varname]+'"');
-        print("\n");
+        print("\n\n");
 
         rl.pause();
 
