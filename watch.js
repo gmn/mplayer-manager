@@ -156,7 +156,7 @@ debugger;
 
   // 
   if ( !config || !config.autoconfig_done ) {
-    config_helper.do_interactive_setup( config, after_interactive_dialog );
+    config_helper.do_interactive_setup( config, after_interactive_dialog, rl );
   } else {
     begin_execution();
   }

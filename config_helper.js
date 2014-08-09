@@ -10,12 +10,6 @@
   var print = function(s){ process.stdout.write(s) }
   var println = function(s){ process.stdout.write(s+"\n") }
 
-  // readline is node builtin
-  var readline = require('readline'), 
-      rl = readline.createInterface(process.stdin, process.stdout);
-
-  rl.pause(); // stops it from getting stuck
-
 
   // lib 
   var lib = require('./lib.js');
@@ -72,7 +66,7 @@
   }
   exports.after_conf_setup = after_conf_setup;
 
-  function do_interactive_setup( config, after_f ) 
+  function do_interactive_setup( config, after_f, rl ) 
   {
     function entry(varname,question,next,def) 
     {
@@ -145,8 +139,7 @@
 
     // 
     config_items.run();
-    
-    return config;
+
   }
   exports.do_interactive_setup = do_interactive_setup;
 
