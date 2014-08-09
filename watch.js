@@ -12,8 +12,7 @@
   var stdout = process.stdout;
 
   var readline = require('readline');
-  var rl = readline.createInterface( stdin, stdout );
-  rl.setPrompt('watch> ');
+  var rl = null;
 
   var read_options = 0;
   var continue_index = 0;
@@ -24,6 +23,8 @@
   var type_of = lib.type_of;
   var trunc_string = lib.trunc_string;
   var fs = require('fs');
+  var queryable = require( 'queryable' );
+  var db = null;
 
   // default config
   var config = {
@@ -41,9 +42,6 @@
       process.env.HOME+'/Desktop'],
     autoconfig_done: 0
   };
-
-  var queryable = require( 'queryable' );
-  var db = queryable.open( config.movies_db_path );
 
 
   var println = function(str) {
@@ -133,18 +131,22 @@ debugger;
 
   function begin_execution()
   {
+    rl = readline.createInterface( stdin, stdout );
+    rl.setPrompt('watch> ');
+
     rl.on('line', readline_line_function ).on('close', function() {
       println('Have a great day!');
       process.exit(0);
     });
+    rl.resume();
+
+    db = queryable.open( config.movies_db_path );
 
     // get movies list
     reload_movies_list();
 
-    if ( !playing ) {
-      menu.print();
-      rl.prompt();
-    }
+    menu.print();
+    rl.prompt();
   }
 
   function after_interactive_dialog() {
