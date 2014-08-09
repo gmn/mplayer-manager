@@ -8,16 +8,24 @@
   // 
   var print = function(s){ process.stdout.write(s) }
   var println = function(s){ process.stdout.write(s+"\n") }
-
+  var exename = process.argv[1].substring( process.argv[1].lastIndexOf('/')+1, process.argv[1].length);
 
   function check_cmdline( config )
   {
     function print_help()
     {
-      print( process.argv[1] + ":\n" );
+      print( exename + ":\n" );
       var p = function(s) { println( ' ' + s ) };
       p( '-c <config_path>  read the config from this location' );
       p( '-k <key> <val>    manually set key:value pairs in the config.' );
+      p( '--help, -h        print this menu' );
+      p( '-ci               change index' );
+      p( '-d                dump list of files' );
+      p( '-dw               dump list of watched file' );
+      p( '<#>               play movie with index <#>' );
+      p( '-a <file> [dir]   add file, dir is optional' );
+      p( '-l                play last played' );
+      p( '-s                set directory file is in' );
       process.exit(0);
     }
 
@@ -25,8 +33,7 @@
     {
       var start_ind = next ? next : 2;
 
-      for ( var i = start_ind; i < process.argv.length; i++ )
-      {
+      for ( var i = start_ind; i < process.argv.length; i++ ) {
         if ( flag === process.argv[i] ) {
           return i;
         }
@@ -51,7 +58,7 @@
       println('setting config_path to "'+config.config_path+'"');
     }
 
-    var p = 2;
+    p = 2;
     while ( (p=check_flag('-k', p)) ) {
       if ( !process.argv[p+1] || !process.argv[p+2] ) {
         println( '-k expects two arguments: <key> <value>' );
@@ -63,24 +70,19 @@
       println('setting config key: "'+key+'" to "'+val+'"');
       p = p + 3;
     }
+
   }
   exports.check_cmdline = check_cmdline;
 
-})();
+  // cmdline args that do something
+  function execute_commands( db, menu )
+  {
 
-/*
-    // cmdline args
     if ( process.argv && process.argv.length > 2 ) 
     {
         var v = process.argv;
-        var exename = v[1].substring( v[1].lastIndexOf('/')+1, v[1].length);
 
-        // -h   help
-        if ( v[2].match(/-h(.*)/i) || v[2].match('--help') ) {
-            println( exename + ': [ [-h|--help] |-ci|-d|-dw|<#>|-add <filename> [dir]| [-l|-last] | [-s|-set] ]' );
-            process.exit(0);
-        // -ci --> change index
-        } else if ( v[2].match( '-ci' ) ) {
+        if ( v[2].match( '-ci' ) ) {
             if ( v.length !== 5 ) {
                 println( "-ci: expects 2 args: from INDEX and INDEX to insert before" );
                 process.exit(0);
@@ -160,7 +162,6 @@
             else
                 db.insert( {file:mov_arg,added:db.now()} );
 
-debugger;
             db.save();
             println( '"' + mov_arg + '" added' );
 
@@ -189,7 +190,8 @@ debugger;
                 if ( menu.lastMov === -1 ) {
                     println( "no movie played yet" );
                 } else {
-                    play_movie( menu.lastMov, menu.lastSec );
+                    menu.play_movie( menu.lastMov, menu.lastSec );
+                    return false;
                 }
         // -s -set
         } else if ( v[2].match(/-s(.*)/i) ) {
@@ -216,12 +218,12 @@ debugger;
             db.save();
             process.exit(0);
         }
-        
         else 
         {
             var k = Number( v[2] );
             if ( !isNaN(k) && k >= 0 && k < menu.movies.length ) {
-                play_movie( k, menu.movies[k].resumeSec ? menu.movies[k].resumeSec : 0 );
+                menu.play_movie( k, menu.movies[k].resumeSec ? menu.movies[k].resumeSec : 0 );
+                return false;
             }
             else
             {
@@ -230,7 +232,10 @@ debugger;
             }
         }
     }
+    else
+      return true;
+
+  }
+  exports.execute_commands = execute_commands;
 
 })();
-*/
-

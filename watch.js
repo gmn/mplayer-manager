@@ -43,7 +43,6 @@
     autoconfig_done: 0
   };
 
-
   var println = function(str) {
     if ( !str )
       stdout.write( "\n" );
@@ -115,6 +114,7 @@
   };
 
   var menu = new MovieMenu();
+  menu.play_movie = play_movie;
 
 
 debugger;
@@ -122,7 +122,7 @@ debugger;
   var config_helper = require( './config_helper.js' );
   var cmdline_parser = require( './cmdline_parser.js' );
 
-  // handle command line flags
+  // handle command line flags that affect config 
   cmdline_parser.check_cmdline( config );
 
   // if default conf path exist, load config from there
@@ -145,8 +145,12 @@ debugger;
     // get movies list
     reload_movies_list();
 
-    menu.print();
-    rl.prompt();
+    // cmdline opts that do something
+    if ( cmdline_parser.execute_commands( db, menu ) ) 
+    {
+      menu.print();
+      rl.prompt();
+    }
   }
 
   function after_interactive_dialog() {
