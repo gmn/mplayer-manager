@@ -5,6 +5,9 @@
 
 (function(){
 
+  var PATH = require('path');
+  var fs = require('fs');
+
   // 
   var print = function(s){ process.stdout.write(s) }
   var println = function(s){ process.stdout.write(s+"\n") }
@@ -95,7 +98,7 @@
 
 
   // cmdline args that do something
-  function execute_commands( db, menu )
+  function execute_commands( db, menu, config )
   {
     var v = process.argv;
     var ind = 0;
@@ -180,22 +183,79 @@ debugger;
       arg2 = v[ ind + 2 ];
 
       if ( !arg1 ) {
-        println( exename + ': -add\'s a new movie. Expects a filename argument and optional search directory' );
+        println( exename + ': -a add\'s a new movie. Expects a filename argument and optional search directory' );
+        process.exit(0);
       }
 
-      var dir_arg = arg2;
       var mov_arg = arg1;
+      var dir_arg = arg2;
 
-      if ( dir_arg )
+      function finish(file,dir)
+      {
+        db.save();
+        dir = dir ? ', dir: "'+dir+'"' : '';
+        println( 'file: "' + file + '"'+dir+' added' );
+        process.exit(0);
+      }
+
+      // 1 - if the dir argument is supplied, just add file:arg1, dir:arg2 - no questions asked
+      if ( dir_arg ) {
         db.insert( {file:mov_arg,dir:dir_arg,added:db.now()} );
-      else
+        finish( mov_arg, dir_arg );
+      }
+
+      // no second argument, resolve arg1
+      var fullpath = PATH.resolve(arg1);
+      var dirname = PATH.dirname(fullpath);
+      var basename = PATH.basename(fullpath);
+
+      // 1b - if PATH.resolve(file) doesn't stat(), just add the unedited original string argument AS IS
+      try {
+        fs.statSync( fullpath );
+      } catch(e) {
         db.insert( {file:mov_arg,added:db.now()} );
+        finish( mov_arg );
+      }
 
-      db.save();
-      println( '"' + mov_arg + '" added' );
+      // 2 - see if its dirname is in the pathlist; if it is, just add basename
+      if ( config.search_paths.indexOf( dirname ) > -1 ) {
+        db.insert( {file:basename,added:db.now()} );
+        finish( basename );
+      }
 
-      process.exit(0);
-    } 
+      // 
+      // 3 - else 
+      //        try to clip off /last_dir/ of dirname
+      var last_dir = '';
+      var dirname2 = '';
+      if ( dirname.lastIndexOf('/') !== -1 ) {
+        last_dir = dirname.slice( dirname.lastIndexOf('/') );
+        dirname2 = dirname.slice( 0, dirname.lastIndexOf('/') );
+        if ( last_dir.charAt(0) === '/' )
+          last_dir = last_dir.slice(1);
+        if ( last_dir.charAt(last_dir.length-1) === '/' )
+          last_dir = last_dir.slice(0,last_dir.length-1);
+      }
+
+      // 4 - if fails: add file:basename, dir:dirname
+      else {
+        db.insert( {file:basename,dir:dirname,added:db.now()} );
+        finish( basename, dirname );
+      }
+
+      // 5 - else (it succeeds, producing:  dirname ==> dirname2 + last_dir )
+      //   - see if dirname2 is in pathlist; 
+      //     - if it is, add file:basename with "dir":"last_dir"
+      if ( config.search_paths.indexOf( dirname2 ) > -1 ) {
+        db.insert( {file:basename,dir:last_dir,added:db.now()} );
+        finish( basename, last_dir );
+      }
+
+      // - else 
+      //      add file:basename with "dir":"dirname"
+      db.insert( {file:basename,dir:dirname,added:db.now()} );
+      finish( basename, dirname );
+    }
 
     // -dw dump watched
     else if ( check_flag('-dw') ) 

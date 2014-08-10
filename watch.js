@@ -130,6 +130,7 @@
   // if default conf path exist, read the config from there
   config_helper.read_config( config );
 
+
   // called after config setup complete
   function begin_execution()
   {
@@ -151,7 +152,7 @@
     rl.resume();
 
     // cmdline opts that do something
-    if ( cmdline_parser.execute_commands( db, menu ) ) 
+    if ( cmdline_parser.execute_commands( db, menu, config ) ) 
     {
       // if nothing happens as result of cmdline, show the menu
       menu.print();
@@ -194,6 +195,8 @@
 
   function system( index, cmd, args_array )
   {
+    var start_sec = -1;
+    var end_sec = -1;
     var p = spawn( cmd, args_array, { env: process.env });
 
     p.stdout.on('data', function (data) {
@@ -202,6 +205,9 @@
 
       var sec = sec_from_mplayer_stream( data );
       if ( sec ) {
+        if ( start_sec === -1 ) { 
+          start_sec = Math.round(Date.now()*0.001);
+        }
         menu.setLastSec( sec );
       }
     });
@@ -214,10 +220,16 @@
     p.on('close', function (code) {
       println('child process exited with code ' + code);
       println('last sec watched: ' + menu.lastSec);
+
+      end_sec = Math.round(Date.now()*0.001);
+      var total_sec_this_run = end_sec - start_sec;
+      var total_sec = (menu.movies[index].sec_watched ? menu.movies[index].sec_watched : 0) + total_sec_this_run;
+
       menu.print();
       rl.prompt();
+
       menu.movies[index].resumeSec = menu.lastSec; // set this key for this movie
-      db.update( {_id:menu.movies[index]._id}, { '$set':{'resumeSec':menu.lastSec}} );
+      db.update( {_id:menu.movies[index]._id}, {'$set':{'resumeSec':menu.lastSec,'sec_watched':total_sec}} );
       db.save();
 
       menu.startOverIndex = -1; // reset this always afterwards
@@ -434,7 +446,7 @@
       } else {
         var res = db.remove( {_id:menu.movies[delete_index]._id} );
         db.save();
-        println( "\nMovie: \""+menu.movies[delete_index].file+'" deleted permanently from '+config[movies_db_name] );
+        println( "\nMovie: \""+menu.movies[delete_index].file+'" deleted permanently from '+config.movies_db_name );
         menu.setLastDeleted( menu.movies[delete_index].file );
         reload_movies_list();
       }

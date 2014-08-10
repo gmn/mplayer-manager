@@ -11,10 +11,15 @@ X - location to store 'movies.json'
 X - location to store 'config.json'
 X 
 X way in commandline to change config options
-
 X rewrite 2nd set of cmdline functions to not be dependent on argv[] specific locations: eg. argv[2], but use check_arg() instead
   so example usage this would allow: "watch -c ./custom_config.js -a new_movie new_movie_dir".  Can't do this now.
     (note: you can make additional script: 'watchp' --> node ~/code/watch.js -c ./custom_conf.js')
+X { sec_watched: } key in movie row. calculate total cumulative seconds watched for each file
+X   account for skips using arrow keys, to get more accurate... Ohhhhh, just get current Unix()sec at beginning and Unix()sec at end.
+X cmdline option to 
+    - IMMEDIATELY ADD A FILE, 
+    - DETERMINE ITS LOCATION AUTOMATICALLY, and if its not in the path list, 
+    - AUTOMATICALLY CREATE A "DIR" ENTRY
 
 * movies can have optional DISPLAY_NAME that appears instead of their filename. If you edit the "name" of a file, it creates a display_name and shows that instead
 
@@ -59,11 +64,6 @@ N ability to edit array of paths in setup
 * explicit video size modifier menu option
 
 * playlists
-
-- cmdline option to 
-    - IMMEDIATELY ADD A FILE, 
-    - DETERMINE ITS LOCATION AUTOMATICALLY, and if its not in the path list, 
-    - AUTOMATICALLY CREATE A "DIR" ENTRY
 
 - exactly the same as previous; then play the movie, all in one
 
