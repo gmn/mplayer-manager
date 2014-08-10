@@ -10,6 +10,21 @@
   var println = function(s){ process.stdout.write(s+"\n") }
   var exename = process.argv[1].substring( process.argv[1].lastIndexOf('/')+1, process.argv[1].length);
 
+
+  function check_flag( flag, next )
+  {
+    var start_ind = next ? next : 2;
+
+    for ( var i = start_ind; i < process.argv.length; i++ ) {
+      if ( flag === process.argv[i] ) {
+        return i;
+      }
+    }
+
+    return false;
+  }
+
+
   // flags checked for (and must be skipped later) in check_cmdline
   var early_flags = ['-c','-k','-nc'];
 
@@ -33,18 +48,6 @@
       process.exit(0);
     }
 
-    function check_flag( flag, next )
-    {
-      var start_ind = next ? next : 2;
-
-      for ( var i = start_ind; i < process.argv.length; i++ ) {
-        if ( flag === process.argv[i] ) {
-          return i;
-        }
-      }
-
-      return false;
-    }
 
     //
     // entry point
@@ -60,6 +63,9 @@
       }
       config['config_path'] = process.argv[p+1];
       println('setting config_path to "'+config.config_path+'"');
+
+      process.argv.splice(p+1,1);
+      process.argv.splice(p+0,1);
     }
 
     p = 2;
@@ -72,184 +78,219 @@
       var val = process.argv[p+2];
       config[ key ] = val;
       println('setting config key: "'+key+'" to "'+val+'"');
-      p = p + 3;
+
+      process.argv.splice(p+2,1);
+      process.argv.splice(p+1,1);
+      process.argv.splice(p+0,1);
+      //p = p + 3;
     }
 
-    if ( check_flag('-nc') ) {
+    if ( (p=check_flag('-nc')) ) {
       config.config_path = undefined;
+      process.argv.splice(p,1);
     }
-  }
+
+  } // check_cmdline
   exports.check_cmdline = check_cmdline;
+
 
   // cmdline args that do something
   function execute_commands( db, menu )
   {
+    var v = process.argv;
+    var ind = 0;
+    var arg1, arg2;
+debugger;
 
-    if ( process.argv && process.argv.length > 2 ) 
+    // -ci == change index
+    if ( (ind=check_flag("-ci")) ) 
     {
-        var v = process.argv;
+      arg1 = v[ ind + 1 ];
+      arg2 = v[ ind + 2 ];
 
+      if ( !arg1 || !arg2 ) {
+        println( "-ci: expects 2 args: from INDEX and INDEX to insert before" );
+        process.exit(0);
+      }
 
-        if ( v[2].match( '-ci' ) ) {
-            if ( v.length !== 5 ) {
-                println( "-ci: expects 2 args: from INDEX and INDEX to insert before" );
-                process.exit(0);
-            }
+      if ( arg1 < 0 || arg1 >= menu.movies.length || arg2 < 0 || arg2 >= menu.movies.length ) {
+        println ( "values out of range" );
+        process.exit(0);
+      }
 
-            if ( v[3] < 0 || v[3] >= menu.movies.length || v[4] < 0 || v[4] >= menu.movies.length ) {
-                println ( "values out of range" );
-                process.exit(0);
-            }
+      // 
+      db.remove({lastMovieId:{$exists:true}});
 
-            // 
-            db.remove({lastMovieId:{$exists:true}});
+      // get _id for index1, _id for index2
+      var id1 = menu.movies[arg1]._id;
+      var id2 = menu.movies[arg2]._id;
 
-            // get _id for index1, _id for index2
-            var id1 = menu.movies[v[3]]._id;
-            var id2 = menu.movies[v[4]]._id;
+      println( 'inserting "' + menu.movies[arg1].file + '" before "' + menu.movies[arg2].file + '"' );
 
-            println( 'inserting "' + menu.movies[v[3]].file + '" before "' + menu.movies[v[4]].file + '"' );
-
-            function row_by_id( r_id ) {
-                var i = 0, l = db.master.length;
-                for (; i < l; i++ ) {
-                    if ( db.master[i]._id === r_id )
-                        return i;
-                }
-                return -1;
-            }
-
-            function _highest_id() {
-                var i = 0, l = db.master.length, h = -1;
-                for (; i < l; i++ ) {
-                    if ( db.master[i]._id > h )
-                        h = db.master[i]._id;
-                }
-                return h;
-            }
-
-            // find row in db.master with (_id == id2)
-            var end_row = row_by_id( id2 );
-            var start_row = row_by_id( id1 );
-            var highest_id = _highest_id();
-
-            // increment every index, starting with id2 to the end of the list
-            //  or until no row uses an index twice
-            var row = -1;
-            var n = highest_id;
-            while ( n >= id2 ) 
-            {
-                row = row_by_id(n);
-                if ( row !== -1 ) {
-                    db.master[row]._id++;
-                }
-                --n;
-            }
-
-            // set index id1 to id2
-            db.master[start_row]._id = id2;
-            db.master[start_row].added = db.master[end_row].added;
-
-            // sort by _id asc
-            db.master = db.master.sort(function(a,b){return a._id - b._id});
-  
-            db.save()
-
-            process.exit(0);
-        // -a   add
-        } else if ( v[2].match(/-a(.*)/i) ) {
-            if ( process.argv.length < 4 ) {
-                println( exename + ': -add\'s a new movie. Expects a filename argument and optional search directory' );
-            }
-
-            var dir_arg = process.argv.length >= 4 ? v[4] : '';
-            var mov_arg = v[3];
-
-            if ( dir_arg )
-                db.insert( {file:mov_arg,dir:dir_arg,added:db.now()} );
-            else
-                db.insert( {file:mov_arg,added:db.now()} );
-
-            db.save();
-            println( '"' + mov_arg + '" added' );
-
-            process.exit(0);
-        // -dw dump watched
-        } else if ( v[2].match('-dw') ) {
-            var watched = db.find( {watched:true} ).sort( {_id:1} ).sort( {date_finished:1} ) ;
-            for ( var index = 0, length = watched.count(); index < length; index++ ) {
-                println( index +"\t"+ watched._data[index].file );
-            }
-            process.exit(0);
-        // -d dump
-        } else if ( v[2].match('-d') ) {
-            var tab = "\t";
-            for ( var index = 0, length = menu.movies.length; index < length; index++ ) {
-                if ( menu.lastMov == index ) 
-                  tab = "+\t";
-                else
-                  tab = "\t";
-                println( index +tab+ menu.movies[index].file );
-            }
-            process.exit(0);
-        // -l last
-        } else if ( v[2].match(/-l(.*)/i) ) {
-            
-                if ( menu.lastMov === -1 ) {
-                    println( "no movie played yet" );
-                } else {
-                    menu.play_movie( menu.lastMov, menu.lastSec );
-                    return false;
-                }
-        // -s -set
-        } else if ( v[2].match(/-s(.*)/i) ) {
-            function _sanity() {
-                if ( v[3] < 0 || v[3] >= menu.movies.length ) {
-                    println ( "values out of range" );
-                    process.exit(0);
-                }
-            }
-            if ( v.length === 4 ) {
-                _sanity();
-                println( "directory for file [" + v[3] + '] "' + menu.movies[v[3]].file + '" --> "' + menu.movies[v[3]].dir + '"' );
-                process.exit(0);
-            }
-            if ( v.length !== 5 ) {
-                println( "-s: expects 1 or 2 arguments" );
-                process.exit(0);
-            }
-            _sanity();
-
-            println( 'setting directory for file "' + menu.movies[v[3]].file +'" from "' + menu.movies[v[3]].dir + '" to "' + v[4] + '"' );
-
-            db.update( {_id: menu.movies[v[3]]._id}, {'$set':{"dir":v[4]}} );
-            db.save();
-            process.exit(0);
+      function row_by_id( r_id ) {
+        var i = 0, l = db.master.length;
+        for (; i < l; i++ ) {
+          if ( db.master[i]._id === r_id )
+            return i;
         }
-        else 
-        {
-            var k = Number( v[2] );
-            if ( !isNaN(k) && k >= 0 && k < menu.movies.length ) {
-                menu.play_movie( k, menu.movies[k].resumeSec ? menu.movies[k].resumeSec : 0 );
-                return false;
-            }
-            else
-            {
-                // flags already checked for, if present, run normally
-                for ( var i = 0; i < early_flags.length; i++ ) {
-                  if ( v[2].match( early_flags[i] ) )
-                    return true;
-                }
+        return -1;
+      }
 
-                println( "dont know that one" );
-                process.exit(0);
-            }
+      function _highest_id() {
+        var i = 0, l = db.master.length, h = -1;
+        for (; i < l; i++ ) {
+          if ( db.master[i]._id > h )
+            h = db.master[i]._id;
         }
+        return h;
+      }
+
+      // find row in db.master with (_id == id2)
+      var end_row = row_by_id( id2 );
+      var start_row = row_by_id( id1 );
+      var highest_id = _highest_id();
+
+      // increment every index, starting with id2 to the end of the list
+      //  or until no row uses an index twice
+      var row = -1;
+      var n = highest_id;
+      while ( n >= id2 ) 
+      {
+        row = row_by_id(n);
+        if ( row !== -1 ) {
+          db.master[row]._id++;
+        }
+        --n;
+      }
+
+      // set index id1 to id2
+      db.master[start_row]._id = id2;
+      db.master[start_row].added = db.master[end_row].added;
+
+      // sort by _id asc
+      db.master = db.master.sort(function(a,b){return a._id - b._id});
+      db.save()
+      process.exit(0);
+    } 
+
+    // -a   add
+    else if ( (ind=check_flag('-a')) ) 
+    {
+      arg1 = v[ ind + 1 ];
+      arg2 = v[ ind + 2 ];
+
+      if ( !arg1 ) {
+        println( exename + ': -add\'s a new movie. Expects a filename argument and optional search directory' );
+      }
+
+      var dir_arg = arg2;
+      var mov_arg = arg1;
+
+      if ( dir_arg )
+        db.insert( {file:mov_arg,dir:dir_arg,added:db.now()} );
+      else
+        db.insert( {file:mov_arg,added:db.now()} );
+
+      db.save();
+      println( '"' + mov_arg + '" added' );
+
+      process.exit(0);
+    } 
+
+    // -dw dump watched
+    else if ( check_flag('-dw') ) 
+    {
+      var watched = db.find( {watched:true} ).sort( {_id:1} ).sort( {date_finished:1} ) ;
+      for ( var index = 0, length = watched.count(); index < length; index++ ) {
+        println( index +"\t"+ watched._data[index].file );
+      }
+      process.exit(0);
+    } 
+
+    // -d dump
+    else if ( check_flag('-d') ) {
+      var tab = "\t";
+      for ( var index = 0, length = menu.movies.length; index < length; index++ ) {
+        if ( menu.lastMov == index ) 
+          tab = "+\t";
+        else
+          tab = "\t";
+        println( index +tab+ menu.movies[index].file );
+      }
+      process.exit(0);
+    } 
+
+    // -l ==> last
+    else if ( check_flag('-l') ) 
+    {
+      if ( menu.lastMov === -1 ) {
+        println( "no movie played yet" );
+      } else {
+        menu.play_movie( menu.lastMov, menu.lastSec );
+        return false;
+      }
     }
-    else
-      return true;
 
-  }
+    // -s ==> set
+    else if ( (ind=check_flag('-s')) ) 
+    {
+      arg1 = v[ ind + 1 ];
+      arg2 = v[ ind + 2 ];
+
+      function _sanity() {
+        if ( arg1 < 0 || arg1 >= menu.movies.length ) {
+          println ( "values out of range" );
+          process.exit(0);
+        }
+      }
+
+      if ( !arg2 ) {
+        _sanity();
+        println( "directory for file [" + arg1 + '] "' + menu.movies[arg1].file + '" --> "' + menu.movies[arg1].dir + '"' );
+        process.exit(0);
+      }
+
+      if ( !arg1 ) {
+        println( "-s: expects 1 or 2 arguments" );
+        process.exit(0);
+      }
+      _sanity();
+
+      println( 'setting directory for file "' + menu.movies[arg1].file +'" from "' + menu.movies[arg1].dir + '" to "' + arg2 + '"' );
+
+      db.update( {_id: menu.movies[arg1]._id}, {'$set':{"dir":arg2}} );
+      db.save();
+      process.exit(0);
+    }
+
+    // try to play movie by number if valid movie[index] given
+    // FIXME: what if there's -c or -k arguments. Should be able to "watch -c my.conf 152"
+    else 
+    {
+      if ( !v[2] )
+        return true;
+
+      var k = Number( v[2] );
+      if ( !isNaN(k) && k >= 0 && k < menu.movies.length ) {
+        menu.play_movie( k, menu.movies[k].resumeSec ? menu.movies[k].resumeSec : 0 );
+        return false;
+      }
+      else
+      {
+        // if flags already checked for, run normally
+        for ( var i = 0; i < early_flags.length; i++ ) {
+          if ( v[2].match( early_flags[i] ) )
+            return true;
+        }
+
+        println( "dont know that one" );
+        process.exit(0);
+      }
+    }
+
+    return true;
+
+  } // execute_commands
   exports.execute_commands = execute_commands;
 
 })();

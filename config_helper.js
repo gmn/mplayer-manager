@@ -34,7 +34,7 @@
       if ( file.trim().length > 0 )
         var parsed_obj = JSON.parse( file );
     } catch(e) {
-      println( "\nDefault config doesn't exist. Creating a new one:\n" );
+      println( "\nDefault config doesn't exist. Creating one. (ctrl+C to exit)\n" );
       return;
     }
 

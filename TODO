@@ -12,7 +12,7 @@ X - location to store 'config.json'
 X 
 X way in commandline to change config options
 
-* rewrite 2nd set of cmdline functions to not be dependent on argv[] specific locations: eg. argv[2], but use check_arg() instead
+X rewrite 2nd set of cmdline functions to not be dependent on argv[] specific locations: eg. argv[2], but use check_arg() instead
   so example usage this would allow: "watch -c ./custom_config.js -a new_movie new_movie_dir".  Can't do this now.
     (note: you can make additional script: 'watchp' --> node ~/code/watch.js -c ./custom_conf.js')
 
