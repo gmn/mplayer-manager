@@ -420,9 +420,11 @@ FIXME: broke
     }
     args.push( fullpath );
 
-println( JSON.stringify(args,null,'  ') );
-
-    print( "running: \"mplayer "+args.join(' ')+'"' );
+    if ( config.vidplayer_silence ) {
+      print( "running: \"mplayer "+options+' '+fullpath+'"' );
+    } else {
+      print( "running: \"mplayer "+args.join(' ')+'"' );
+    }
 
     dotdotdot( config.preplay_timeout, function() { system( n, 'mplayer', args ); } );
   } // play_movie

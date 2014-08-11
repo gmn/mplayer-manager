@@ -40,13 +40,13 @@
       p( '-c <config_path>  read the config from this location' );
       p( '-k <key> <val>    manually set key:value pairs in the config.' );
       p( '--help, -h        print this menu' );
-      p( '-ci               change index' );
+      p( '-ci <id> <id2>    change index' );
       p( '-d                dump list of files' );
       p( '-dw               dump list of watched file' );
       p( '<#>               play movie with index <#>' );
       p( '-a <file> [dir]   add file, dir is optional' );
       p( '-l                play last played' );
-      p( '-s                set directory file is in' );
+      p( '-s <id>           set directory file is in' );
       p( '-nc               force-start a new config' );
       p( '-w                show files most watched' );
       p( '-rn <id> <name>   sets files display_name to <name>' );
@@ -54,7 +54,7 @@
       process.exit(0);
     }
 
-
+debugger;
     //
     // entry point
     //
@@ -74,23 +74,6 @@
       process.argv.splice(p+0,1);
     }
 
-    p = 2;
-    while ( (p=check_flag('-k', p)) ) {
-      if ( !process.argv[p+1] || !process.argv[p+2] ) {
-        println( '-k expects two arguments: <key> <value>' );
-        process.exit(-1);
-      }
-      var key = process.argv[p+1];
-      var val = process.argv[p+2];
-      config[ key ] = val;
-      println('setting config key: "'+key+'" to "'+val+'"');
-
-      process.argv.splice(p+2,1);
-      process.argv.splice(p+1,1);
-      process.argv.splice(p+0,1);
-      //p = p + 3;
-    }
-
     if ( (p=check_flag('-nc')) ) {
       config.config_path = undefined;
       process.argv.splice(p,1);
@@ -107,6 +90,32 @@
     var ind = 0;
     var arg1, arg2;
 debugger;
+
+    // override config 
+    if ( check_flag('-k') ) {
+      var p = 2;
+      while ( (p=check_flag('-k')) ) {
+        if ( !process.argv[p+1] || !process.argv[p+2] ) {
+          println( '-k expects two arguments: <key> <value>' );
+          process.exit(-1);
+        }
+        var key = process.argv[p+1];
+        var val = process.argv[p+2];
+
+        var num = Number(val);
+        if ( !isNaN(num) ) {
+          config[ key ] = num;
+        } else {
+          config[ key ] = val;
+        }
+        println('setting config key: "'+key+'" to "'+val+'"');
+
+        process.argv.splice(p+2,1);
+        process.argv.splice(p+1,1);
+        process.argv.splice(p+0,1);
+      }
+    }
+
 
     // -ci == change index
     if ( (ind=check_flag("-ci")) ) 
@@ -186,6 +195,7 @@ debugger;
 
       process.exit(0);
     }
+
 
     // -a   add
     else if ( (ind=check_flag('-a')) ) 
