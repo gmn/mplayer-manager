@@ -32,9 +32,8 @@ X rewrite the db format to include PERMANENT_INDEX, to simplify ordering them  (
   X call renormalize() in '-ci' function
   X put '[pid]' in -watched flag
 X movies can have optional DISPLAY_NAME that appears instead of their filename. If you edit the "name" of a file, it creates a display_name and shows that instead
-
-
-* move 'vid' script into watch.js
+X move 'vid' script into watch.js
+N ability to edit array of paths in setup
 
 
 * This module is intended to be installed globally with 'npm install -g'
@@ -46,8 +45,6 @@ X movies can have optional DISPLAY_NAME that appears instead of their filename. 
 * even MORE intelligent path searching, using 'find /dir -name <file>'
   algorithm: go through path list. 
   * Or just get array of sub-dirs in each search-path, and look for the file in those.
-
-N ability to edit array of paths in setup
 
 * playlist: way to {create, edit, delete, execute} multiple playlists
 
@@ -74,7 +71,7 @@ N ability to edit array of paths in setup
 
 * playlists
 
-- exactly the same as previous; then play the movie, all in one
+- add the movie, then play the movie, all in one cmdline command
 
 - put on a lock when running, so if external shell adds file, it prints an error
 

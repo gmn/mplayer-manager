@@ -78,7 +78,7 @@
     var null_f = function() { return ''; };
     var dvd_f = function() { return that.dvd ? ' (-dvd is set)' : ''; };
     var opt_f = function() { return that.options ? ' (-opts "'+that.options+'")' : '' };
-    var last_f = function() { return that.lastMov !== -1 ? ' (last: ['+that.lastMov+']'+trunc_string(that.movies[that.lastMov].file,30)+' @sec: '+that.lastSec+')' : '' };
+    var last_f = function() { return that.lastMov !== -1 ? ' (last: ['+that.lastMov+']'+trunc_string(that.movies[that.indexFromPid(that.lastMov)].file,30)+' @sec: '+that.lastSec+')' : '' };
     var out_f = function() { return config.vidplayer_silence ? ' (off)' : ' (on)' };
     var del_f = function() { return that.lastDeleted === '' ? '' : ' (last: "'+trunc_string(that.lastDeleted,40)+'")' };
 
@@ -384,28 +384,47 @@
 
     playing = 1;
 
-    var args = [fullpath];
+    function mplayer_run_args() {
+      var FONTCONFIG = '';
+      var FONT_SCALE = 10;
+      var MPLAYER_OPTS = '';
+      var VIDEO_TS = '';
+      var str = '-noborder -vo gl -dr -noslices -ass -embeddedfonts -ass-line-spacing 0 -ass-font-scale 1 -ass-styles /home/gnaughto/.config/smplayer/styles.ass '+ FONTCONFIG + ' -font Arial -subfont-autoscale 0 -subfont-osd-scale ' + FONT_SCALE + ' -subfont-text-scale '+ FONT_SCALE +' -subcp ISO-8859-1 -stop-xscreensaver -vf-add screenshot -slices -af scaletempo,volume=12:1 -softvol -softvol-max 600 -volume 20 ' + MPLAYER_OPTS + ' ' + VIDEO_TS; 
+      return str.trim().split( /[\s]+/ );
+    }
+
+    var args = mplayer_run_args();
+
     menu.lastMov = pid;
     db.update({'lastMoviePid':/.*/},{'$set':{'lastMoviePid':menu.movies[n]['pid']}},{'upsert':true});
     db.save();
 
+/*
+FIXME: broke
     if ( menu.dvd || fullpath.match(/video_ts/i) ) {
       args.push( "-dvd" );
     }
+*/
 
-    var options = menu.options;
-    if ( resume_sec ) {
-      options = menu.options + " -ss " + resume_sec;
+    var options = menu.options.trim();
+    
+    if ( resume_sec && options ) {
+      options += ' -ss ' + resume_sec;
+    } else if ( resume_sec ) {
+      options = '-ss ' + resume_sec;
     }
 
     if ( options ) {
-      args.push( "-opts" );
-      args.push( options );
+      //args.push( "-opts" );
+      args = args.concat( options.split(/[\s]+/) );
     }
+    args.push( fullpath );
 
-    print( "running: vid \""+args.join('" "')+'"' );
+println( JSON.stringify(args,null,'  ') );
 
-    dotdotdot( config.preplay_timeout, function() { system( n, 'vid', args ); } );
+    print( "running: \"mplayer "+args.join(' ')+'"' );
+
+    dotdotdot( config.preplay_timeout, function() { system( n, 'mplayer', args ); } );
   } // play_movie
 
   function dotdotdot( timeout, func ) {
