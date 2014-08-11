@@ -84,7 +84,7 @@
         { ent: '[m] mark as watched', f: null_f },
         { ent: '[u] mark un-watched', f: null_f },
         { ent: '[w] list watched', f: null_f },
-        { ent: '[f] find files that match string fragment', f: null_f },
+        { ent: '[f] find files matching fragment', f: null_f },
         { ent: '[q] quit', f: null_f }
     ];
 
@@ -175,6 +175,7 @@
     // read the movies database
     db = queryable.open( config.movies_db_path );
 
+debugger;
     // get movies list
     reload_movies_list();
 
@@ -556,13 +557,15 @@ FIXME: broke
 
       var r = db.find( {$or:[{file:reg},{display_name:reg}]} );
 
+      println( "\n --> " + r.length + " matches found\n" ); 
+
       for ( var i = 0, l = r.length; i<l; i++ ) {
         var o = r._data[i];
         var tab = o.watched ? '  w  ' : '     ';
         if ( menu.lastMov == o.pid )
           tab = '  t  ';
         var name = o.display_name ? o.display_name + ' ('+o.file+')' : o.file;
-        println( '['+o.pid+']' + tab + name );
+        println( ' ['+o.pid+']' + tab + name );
       }
 
     }

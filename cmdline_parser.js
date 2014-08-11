@@ -204,7 +204,7 @@ debugger;
 
       function finish( filename, dirname )
       {
-        var new_pid = menu.highestPid() + 1;
+        var new_pid = menu.highestUnwatchedPid() + 1;
         db.insert( {file:filename, dir:dirname, added:db.now(), pid: new_pid} );
         db.save();
         dirname = dirname ? ', dir: "'+dirname+'"' : '';
@@ -354,18 +354,23 @@ debugger;
       process.exit(0);
     }
 
-    // show watched
+    // show watched seconds, sorting by longest
     else if ( check_flag('-w') )
     {
       var res = db.find( {sec_watched:{$exists:true}}).sort( { sec_watched: -1 } );
+      var tot = 0;
       for ( var i = 0, l = res._data.length; i < l; i++ ) {
         var o = res._data[i];
+        tot += o.sec_watched;
         var name = o.display_name ? o.display_name : o.file;
         var tab = o.watched ? '  w  ' : '     ';
         if ( menu.lastMov == o.pid ) 
           tab = '  t  ';
         println( i + tab + lib.secToHMS(o.sec_watched) + "\t["+ o.pid + '] ' + name );
       }
+      println("----------------------------------");
+      println('  ' + lib.secToHMS(tot) + ' seconds watched total' );
+      println("----------------------------------");
       process.exit(0);
     }
 
