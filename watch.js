@@ -57,6 +57,18 @@
     stdout.write( str );
   };
 
+  function MovieRow(o) {
+    for ( var i in o ) {
+      if ( o.hasOwnProperty(i) ) {
+        this[i] = o[i];
+      }
+    }
+  }
+  MovieRow.prototype.name = function() {
+    return this.display_name ? this.display_name : this.file;
+  }
+
+
   /*
    * Menu class
    */
@@ -289,7 +301,7 @@
     for ( i = 0, index = continue_index, len = menu.movies.length; index < len && i < disp_rows; index++, i++ ) {
       var x = menu.movies[index].resumeSec ? "  (@"+menu.movies[index].resumeSec+")" : '';
       var m = x ? ' t ' : '   ';
-      println( menu.movies[index].pid + m + menu.movies[index].file + x );
+      println( menu.movies[index].pid + m + menu.movies[index].name() + x );
     }
     if ( i === disp_rows && menu.movies.length > index ) {
       continue_index = index;
@@ -308,7 +320,8 @@
     for ( i = 0, index = watched_continue_index, len = watched.length; index < len && i < disp_rows; index++, i++ ) {
       var t = watched._data[index].date_finished;
       t = t ? " finished: " + t.substring(0,10) : '';
-      println( watched._data[index].pid + ' ' + watched._data[index].file + t );
+      var name = watched._data[index].display_name ? watched._data[index].display_name : watched._data[index].file;
+      println( watched._data[index].pid + ' ' + name + t );
     }
     if ( i === disp_rows && watched.length > index ) {
       watched_continue_index = index;
@@ -438,7 +451,7 @@
         if ( menu.movies[mark].watched && menu.movies[mark].watched === true ) {
           println( "Already watched that one on: " + menu.movies[mark].date_finished );
         } else {
-          var filename = menu.movies[mark].file;
+          var filename = menu.movies[mark].name();
           var new_pid = menu.highestWatchedPid() + 1;
           print( "\nMarking \"" + filename + "\" as watched... " );
           var r = db.update( {_id:mark_id}, {$set:{watched:true,date_finished:db.now(),pid:new_pid}} );
@@ -500,8 +513,8 @@
         var delete_index = menu.indexFromPid(delete_pid);
         var res = db.remove( {_id:menu.movies[delete_index]._id} );
         db.save();
-        println( "\nMovie: \""+menu.movies[delete_index].file+'" deleted permanently from '+config.movies_db_name );
-        menu.setLastDeleted( menu.movies[delete_index].file );
+        println( "\nMovie: \""+menu.movies[delete_index].name()+'" deleted permanently from '+config.movies_db_name );
+        menu.setLastDeleted( menu.movies[delete_index].name() );
         reload_movies_list();
       }
     }
@@ -565,17 +578,18 @@
           continue_index = watched_continue_index = 0;
           break;
       default:
-          var n = Number(line.trim());
+          var pid = Number(line.trim());
           if ( line.length === 0 ) {
               // do nothing
-          } else if ( typeof n !== "number" ) {
+          } else if ( typeof pid !== "number" ) {
               println( 'Not sure if I\'ve heard of "' + line.trim() + '"' );
-          } else if ( n >= 0 && n < menu.movies.length ) {
+          } else if ( pid >= 1 && pid <= menu.highestUnwatchedPid() ) {
               if ( menu.startOverPid !== -1 ) {
                   play_movie( menu.startOverPid );
                   menu.startOverPid = -1;
               } else {
-                  play_movie( n, menu.movies[n].resumeSec ? menu.movies[n].resumeSec : 0 );
+                  var n = menu.indexFromPid( pid );
+                  play_movie( pid, menu.movies[n].resumeSec ? menu.movies[n].resumeSec : 0 );
               }
           } else {
               println( "selection out of range!" );
@@ -600,7 +614,11 @@
     var movies_res = db.find( {file:{$exists:true},$or:[{watched:false},{watched:{$exists:false}}]} ).sort({pid:1});
 
     // got movies finally
-    menu.movies = movies_res.getArray();
+    menu.movies = []; 
+    var ary = movies_res.getArray();
+    for ( var i = 0, l = ary.length; i<l; i++ ) {
+      menu.movies[i] = new MovieRow( ary[i] );
+    }
 
     // setup last movie
     var lasmov = db.find({lastMoviePid:/.*/});

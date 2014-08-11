@@ -49,7 +49,8 @@
       p( '-s                set directory file is in' );
       p( '-nc               force-start a new config' );
       p( '-w                show files most watched' );
-      p( '-name <id> <name> sets files display_name to <name>' );
+      p( '-rn <id> <name>   sets files display_name to <name>' );
+      p( '-pc               print current config' );
       process.exit(0);
     }
 
@@ -269,7 +270,8 @@ debugger;
       //var watched = db.find( {watched:true} ).sort( {_id:1} ).sort( {date_finished:1} ) ;
       var watched = db.find( {watched:true} ).sort( {pid:1} );
       for ( var index = 0, length = watched.count(); index < length; index++ ) {
-        println( watched._data[index].pid +"\t"+ watched._data[index].file );
+        var name = watched._data[index].display_name ? watched._data[index].display_name : watched._data[index].file;
+        println( watched._data[index].pid +"\t"+ name );
       }
       process.exit(0);
     } 
@@ -278,11 +280,11 @@ debugger;
     else if ( check_flag('-d') ) {
       var tab = "\t";
       for ( var index = 0, length = menu.movies.length; index < length; index++ ) {
-        if ( menu.lastMov == index ) 
+        if ( menu.lastMov == menu.movies[index].pid ) 
           tab = "+\t";
         else
           tab = "\t";
-        println( menu.movies[index].pid + tab + menu.movies[index].file );
+        println( menu.movies[index].pid + tab + menu.movies[index].name() );
       }
       process.exit(0);
     } 
@@ -301,44 +303,53 @@ debugger;
     // -s ==> set
     else if ( (ind=check_flag('-s')) ) 
     {
-      arg1 = v[ ind + 1 ];
-      arg2 = v[ ind + 2 ];
+      var pid       = Number( v[ ind + 1 ] );
+      var new_name  = v[ ind + 2 ];
 
-      function _sanity() {
-        if ( arg1 < 0 || arg1 >= menu.movies.length ) {
-          println ( "values out of range" );
-          process.exit(0);
-        }
-      }
-
-      if ( !arg2 ) {
-        _sanity();
-        println( "directory for file [" + arg1 + '] "' + menu.movies[arg1].file + '" --> "' + menu.movies[arg1].dir + '"' );
-        process.exit(0);
-      }
-
-      if ( !arg1 ) {
+      if ( !pid || isNaN(pid) || pid < 1 || pid > menu.highestUnwatchedPid() ) {
+        println ( "first value out of range, or not a number." );
         println( "-s: expects 1 or 2 arguments" );
         process.exit(0);
       }
-      _sanity();
 
-      println( 'setting directory for file "' + menu.movies[arg1].file +'" from "' + menu.movies[arg1].dir + '" to "' + arg2 + '"' );
+      var index = menu.indexFromPid( pid );
 
-      db.update( {_id: menu.movies[arg1]._id}, {'$set':{"dir":arg2}} );
+      if ( !new_name ) {
+        println( "directory for file [" + pid + '] "' + menu.movies[index].file + '" --> "' + menu.movies[index].dir + '"' );
+        process.exit(0);
+      }
+
+      println( 'setting directory for file "' + menu.movies[index].file +'" from "' + menu.movies[index].dir + '" to "' + new_name + '"' );
+
+      db.update( {_id: menu.movies[index]._id}, {'$set':{"dir":new_name}} );
       db.save();
       process.exit(0);
     }
 
-    // -name
-    else if ( (ind=check_flag('-name')) )
+    // give the file a different name for displaying, without changing its actual filename
+    else if ( (ind=check_flag('-rn')) )
     {
-      arg1 = v[ ind + 1 ];
+      arg1 = Number( v[ ind + 1 ] );
       arg2 = v[ ind + 2 ];
-      if ( !arg1 || !arg2 ) {
-        println( 'usage: '+exename+' -name <id> <name_file_to_this>' );
+      if ( isNaN(arg1) || !arg1 || !arg2 || arg1<1 || arg1>menu.highestUnwatchedPid() ) {
+        println( 'usage: '+exename+' -rn <id> <name_file_to_this>' );
         process.exit(0);
       }
+
+      // get current displaying name 
+      var res = db.find( {pid:arg1, $or:[{watched:false},{watched:{$exists:false}}]} );
+      var m = res._data[0];
+      var before = m.display_name ? m.display_name : m.file; 
+      
+      // change
+      db.update( {pid:arg1, $or:[{watched:false},{watched:{$exists:false}}]} , {'$set':{display_name:arg2}} );
+      db.save();
+
+      // report
+      res = db.find( {pid:arg1,display_name:arg2} );
+      m = res._data[0];
+      println( 'changed: "'+before+'" to: "'+m.display_name+'"' );
+
       process.exit(0);
     }
 
@@ -353,16 +364,22 @@ debugger;
       process.exit(0);
     }
 
+    // print
+    else if ( check_flag('-pc') ) {
+      println( JSON.stringify(config,null,'  ') );
+      process.exit(0);
+    }
+
     // try to play movie by number if valid movie[index] given
-    // FIXME: what if there's -c or -k arguments. Should be able to "watch -c my.conf 152"
     else 
     {
       if ( !v[2] )
         return true;
 
-      var k = Number( v[2] );
-      if ( !isNaN(k) && k >= 0 && k < menu.movies.length ) {
-        menu.play_movie( k, menu.movies[k].resumeSec ? menu.movies[k].resumeSec : 0 );
+      var pid = Number( v[2] );
+      if ( !isNaN(pid) && pid >= 1 && pid <= menu.highestUnwatchedPid() ) {
+        var k = menu.indexFromPid( pid );
+        menu.play_movie( pid, menu.movies[k].resumeSec ? menu.movies[k].resumeSec : 0 );
         return false;
       }
       else

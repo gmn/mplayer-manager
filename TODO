@@ -31,11 +31,11 @@ X rewrite the db format to include PERMANENT_INDEX, to simplify ordering them  (
   X change index code
   X call renormalize() in '-ci' function
   X put '[pid]' in -watched flag
+X movies can have optional DISPLAY_NAME that appears instead of their filename. If you edit the "name" of a file, it creates a display_name and shows that instead
 
 
 * move 'vid' script into watch.js
 
-* movies can have optional DISPLAY_NAME that appears instead of their filename. If you edit the "name" of a file, it creates a display_name and shows that instead
 
 * This module is intended to be installed globally with 'npm install -g'
 
