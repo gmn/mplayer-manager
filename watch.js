@@ -24,8 +24,6 @@
   var read_options = 0;
   var continue_index = 0;
   var watched_continue_index = 0;
-  var preplay_timeout = 1200;
-  var vidplayer_silence = 1;
   var playing = 0;
 
   // default config
@@ -38,11 +36,14 @@
     movies_db_name: 'movies.db',
     movies_db_path: process.env.HOME + '/' + '.mplayermanager/movies.db',
     search_paths: [
-      process.env.HOME,
       process.env.HOME+'/Videos',
       process.env.HOME+'/Downloads',
+      process.env.HOME,
       process.env.HOME+'/Desktop'],
-    autoconfig_done: 0
+    autoconfig_done: 0,
+    preplay_timeout: 1200,
+    vidplayer_silence: 1,
+    num_last_watched: 5
   };
 
   var println = function(str) {
@@ -66,7 +67,7 @@
     var dvd_f = function() { return that.dvd ? ' (-dvd is set)' : ''; };
     var opt_f = function() { return that.options ? ' (-opts "'+that.options+'")' : '' };
     var last_f = function() { return that.lastMov !== -1 ? ' (last: ['+that.lastMov+']'+trunc_string(that.movies[that.lastMov].file,30)+' @sec: '+that.lastSec+')' : '' };
-    var out_f = function() { return vidplayer_silence ? ' (off)' : ' (on)' };
+    var out_f = function() { return config.vidplayer_silence ? ' (off)' : ' (on)' };
     var del_f = function() { return that.lastDeleted === '' ? '' : ' (last: "'+trunc_string(that.lastDeleted,40)+'")' };
 
     this.entries = [
@@ -87,7 +88,7 @@
     this.dvd = 0;
     this.lastMov = -1;
     this.lastSec = 0;
-    this.startOverIndex = -1;
+    this.startOverPid = -1;
     this.lastDeleted = '';
   }
   MovieMenu.prototype = {
@@ -111,6 +112,39 @@
       this.lastDeleted = mvname;
       db.update({'lastDeleted':/.*/},{'$set':{'lastDeleted':mvname}},{'upsert':true});
       db.save();
+    },
+    indexFromPid: function(pid) {
+      for ( var i = 0, l = this.movies.length; i<l; i++ ) {
+        if ( this.movies[i].pid === pid )
+          return i;
+      }
+      return -1;
+    },
+    highestUnwatchedPid: function() {
+      var hpid = 0;
+      for ( var i = 0, l = this.movies.length; i<l; i++ ) {
+        if ( this.movies[i].pid > hpid )
+          hpid = this.movies[i].pid;
+      }
+      return hpid;
+    },
+    highestWatchedPid: function() {
+      var watched = db.find( {watched:true} ).sort( {pid:-1} ).limit(1);
+      return watched.length === 0 ? 0 : watched._data[0].pid;
+    },
+    renormalizeUnwatchedPid: function( starting ) {
+      var start_id = starting ? starting : 0;
+      var res = db.find( {$or:[{watched:false},{watched:{$exists:false}}]} ).sort( {pid:1} );
+      for ( var i = start_id, l = res._data.length; i<l; i++ ) {
+        db.update( {_id:res._data[i]._id}, {$set:{pid:i+1}} );
+      }
+    },
+    renormalizeWatchedPid: function( starting ) {
+      var start_id = starting ? starting : 0;
+      var res = db.find( {watched:true} ).sort( {pid:1} );
+      for ( var i = start_id, l = res._data.length; i<l; i++ ) {
+        db.update( {_id:res._data[i]._id}, {$set:{pid:i+1}} );
+      }
     }
   };
 
@@ -200,7 +234,7 @@
     var p = spawn( cmd, args_array, { env: process.env });
 
     p.stdout.on('data', function (data) {
-      if ( !vidplayer_silence )
+      if ( !config.vidplayer_silence )
         println( data );
 
       var sec = sec_from_mplayer_stream( data );
@@ -213,7 +247,7 @@
     });
 
     p.stderr.on('data', function (data) {
-      if ( !vidplayer_silence )
+      if ( !config.vidplayer_silence )
         println( 'stderr: ' + data );
     });
 
@@ -232,7 +266,7 @@
       db.update( {_id:menu.movies[index]._id}, {'$set':{'resumeSec':menu.lastSec,'sec_watched':total_sec}} );
       db.save();
 
-      menu.startOverIndex = -1; // reset this always afterwards
+      menu.startOverPid = -1; // reset this always afterwards
     });
   } // system
 
@@ -246,7 +280,6 @@
       return;
     }
     
-
     var col = stdout.columns, row = stdout.rows;
 
     var disp_rows = row - 2;
@@ -256,7 +289,7 @@
     for ( i = 0, index = continue_index, len = menu.movies.length; index < len && i < disp_rows; index++, i++ ) {
       var x = menu.movies[index].resumeSec ? "  (@"+menu.movies[index].resumeSec+")" : '';
       var m = x ? ' t ' : '   ';
-      println( index + m + menu.movies[index].file + x );
+      println( menu.movies[index].pid + m + menu.movies[index].file + x );
     }
     if ( i === disp_rows && menu.movies.length > index ) {
       continue_index = index;
@@ -271,11 +304,11 @@
     var col = stdout.columns, row = stdout.rows;
     var disp_rows = row - 2;
     var i, index, len;
-    var watched = db.find( {watched:true} ).sort( {_id:1} ).sort( {date_finished:1} ) ;
+    var watched = db.find( {watched:true} ).sort( {pid:1} );
     for ( i = 0, index = watched_continue_index, len = watched.length; index < len && i < disp_rows; index++, i++ ) {
       var t = watched._data[index].date_finished;
       t = t ? " finished: " + t.substring(0,10) : '';
-      println( index + ' ' + watched._data[index].file + t );
+      println( watched._data[index].pid + ' ' + watched._data[index].file + t );
     }
     if ( i === disp_rows && watched.length > index ) {
       watched_continue_index = index;
@@ -326,9 +359,9 @@
     return null;
   } // find_file
 
-  function play_movie( n, resume_sec )
+  function play_movie( pid, resume_sec )
   {
-    playing = 1;
+    var n = menu.indexFromPid(pid);
 
     var fullpath = find_file( menu.movies[n].file, (menu.movies[n].dir ? menu.movies[n].dir : null) );
     if ( !fullpath ) {
@@ -336,9 +369,11 @@
       return;
     }
 
+    playing = 1;
+
     var args = [fullpath];
-    menu.lastMov = n;
-    db.update({'lastMovieId':/.*/},{'$set':{'lastMovieId':menu.movies[n]['_id']}},{'upsert':true});
+    menu.lastMov = pid;
+    db.update({'lastMoviePid':/.*/},{'$set':{'lastMoviePid':menu.movies[n]['pid']}},{'upsert':true});
     db.save();
 
     if ( menu.dvd || fullpath.match(/video_ts/i) ) {
@@ -357,7 +392,7 @@
 
     print( "running: vid \""+args.join('" "')+'"' );
 
-    dotdotdot( preplay_timeout, function() { system( n, 'vid', args ); } );
+    dotdotdot( config.preplay_timeout, function() { system( n, 'vid', args ); } );
   } // play_movie
 
   function dotdotdot( timeout, func ) {
@@ -378,28 +413,38 @@
       print_movies(line);         
     } else if ( watched_continue_index !== 0 ) {
       print_watched_movies();
-    } else if ( read_options === 1 /* options */ ) { 
+    } 
+
+    // options
+    else if ( read_options === 1 ) { 
       menu.options = line.trim();
       read_options = 0;
-    } else if ( read_options === 3 /* mark */ ) {
+    } 
+
+    // mark file
+    else if ( read_options === 3 ) {
       read_options = 0;
-      var mark = Number( line.trim() );
-      if ( line.trim().length === 0 || isNaN( mark ) ) {
+      var pid = Number( line.trim() );
+
+      if ( line.trim().length === 0 || isNaN( pid ) ) {
         println( "That's not a movie index, silly." );
-      } else if ( mark < 0 || mark >= menu.movies.length ) {
+      } else if ( pid < 0 || pid >= menu.highestUnwatchedPid() ) {
         println( "Not in range" );
-      } else {
+      } 
+      else {
+        var mark = menu.indexFromPid( pid );
         var mark_id = menu.movies[mark]._id;
 
         if ( menu.movies[mark].watched && menu.movies[mark].watched === true ) {
           println( "Already watched that one on: " + menu.movies[mark].date_finished );
         } else {
           var filename = menu.movies[mark].file;
-
+          var new_pid = menu.highestWatchedPid() + 1;
           print( "\nMarking \"" + filename + "\" as watched... " );
-          var r = db.update( {_id:mark_id}, {$set:{watched:true,date_finished:db.now()}} );
+          var r = db.update( {_id:mark_id}, {$set:{watched:true,date_finished:db.now(),pid:new_pid}} );
+          menu.renormalizeUnwatchedPid();
           if ( r === 1 ) { 
-            db.remove({lastMovieId:{$exists:true}});
+            db.remove({lastMoviePid:{$exists:true}});
             db.save(); 
             menu.lastMov = -1;
             reload_movies_list() ;
@@ -409,41 +454,50 @@
           }
         }
       }
-    } else if ( read_options === 4 /* unmark */ ) { 
+    }
+
+    // unmark file
+    else if ( read_options === 4 ) { 
       read_options = 0;
-      var unwatch_index = Number( line.trim() );
-      var watched = db.find( {watched:true} ).sort( {_id:1} ).sort( {date_finished:1} ) ;
+      var unwatch_pid = Number( line.trim() );
+      var watched = db.find( {watched:true} ).sort( {pid:1} );
       
-      if ( line.trim().length === 0 || isNaN( unwatch_index ) ) {
+      if ( line.trim().length === 0 || isNaN( unwatch_pid ) ) {
         println( "That's not a movie index, silly." );
-      } else if ( unwatch_index < 0 || unwatch_index >= watched.length ) {
+      } else if ( unwatch_pid < 1 || unwatch_pid > menu.highestWatchedPid() ) {
         println( "Not in range" );
-      } else {
+      } 
+      else {
+        var unwatch_index = -1;
+        for ( var i = 0, l = watched._data.length; i<l; i++ ) {
+          if ( watched._data[i].pid === unwatch_pid ) {
+            unwatch_index = i;
+            break;
+          } 
+        }
         // set unwatched and update dateAdded, to effectively
-        db.update( {_id:watched._data[unwatch_index]._id}, {$set:{watched:false,added:db.now()}} );
+        var new_pid = menu.highestUnwatchedPid() + 1;
+        db.update( {_id:watched._data[unwatch_index]._id}, {$set:{watched:false,added:db.now(),pid:new_pid}} );
+        menu.renormalizeWatchedPid();
         db.save();
         var file = watched._data[unwatch_index].file;
         reload_movies_list();
-        var report = null;
-        for ( var i = menu.movies.length-1; i>=0; i-- ) {
-          if ( file.match( menu.movies[i].file) ) {
-            report = i;
-            break;
-          }
-        }
-        println( "\n\""+file+'" marked unwatched and set to: ' + report );
+        println( "\n\""+file+'" marked unwatched and set to: ' + new_pid );
       }
     } 
-    else if ( read_options === 5 /* delete */ ) 
+
+    // remove file from db
+    else if ( read_options === 5 ) 
     {
       read_options = 0;
-      var delete_index = Number( line.trim() );
+      var delete_pid = Number( line.trim() );
 
-      if ( line.trim().length === 0 || isNaN( delete_index ) ) {
+      if ( line.trim().length === 0 || isNaN( delete_pid ) ) {
         println( "That's not a movie index, silly." );
-      } else if ( delete_index < 0 || delete_index >= menu.movies.length ) {
+      } else if ( delete_pid < 0 || delete_pid >= menu.movies.length ) {
         println( "Not in range" );
       } else {
+        var delete_index = menu.indexFromPid(delete_pid);
         var res = db.remove( {_id:menu.movies[delete_index]._id} );
         db.save();
         println( "\nMovie: \""+menu.movies[delete_index].file+'" deleted permanently from '+config.movies_db_name );
@@ -454,7 +508,7 @@
     else 
     {
       if ( read_options === 2 /* start file at beginning */ ) { 
-        menu.startOverIndex = Number( line.trim() );
+        menu.startOverPid = Number( line.trim() );
         read_options = 0;
       }
 
@@ -484,7 +538,7 @@
           }
           break;
       case 't':
-          vidplayer_silence = vidplayer_silence ? 0 : 1;
+          config.vidplayer_silence = config.vidplayer_silence ? 0 : 1;
           break;
       case 's':
           print("start which from beginning> ");
@@ -517,9 +571,9 @@
           } else if ( typeof n !== "number" ) {
               println( 'Not sure if I\'ve heard of "' + line.trim() + '"' );
           } else if ( n >= 0 && n < menu.movies.length ) {
-              if ( menu.startOverIndex !== -1 ) {
-                  play_movie( menu.startOverIndex );
-                  menu.startOverIndex = -1;
+              if ( menu.startOverPid !== -1 ) {
+                  play_movie( menu.startOverPid );
+                  menu.startOverPid = -1;
               } else {
                   play_movie( n, menu.movies[n].resumeSec ? menu.movies[n].resumeSec : 0 );
               }
@@ -542,38 +596,23 @@
 
   function reload_movies_list()
   {
-/*
-    // FIXME:  need to poll db multiple times the first time because I wrote the gzip function async()
-    var movies_res = null;
-    var timer_handle = null;
-    function poll_db() {
-        movies_res = db.find( {file:{$exists:true},$or:[{watched:false},{watched:{$exists:false}}]} ).sort({_id:1}).sort({added:1});
-        if ( movies_res.count() > 0 )
-            clearTimeouts( timer_handle );
-    }
-    timer_handle = setTimeout( poll_db, 20 );
-    function start_poll() {
-        do {
-            
-        } while(1);
-    }
-*/
-
-    var movies_res = db.find( {file:{$exists:true},$or:[{watched:false},{watched:{$exists:false}}]} ).sort({_id:1}).sort({added:1});
+    //var movies_res = db.find( {file:{$exists:true},$or:[{watched:false},{watched:{$exists:false}}]} ).sort({_id:1}).sort({added:1});
+    var movies_res = db.find( {file:{$exists:true},$or:[{watched:false},{watched:{$exists:false}}]} ).sort({pid:1});
 
     // got movies finally
     menu.movies = movies_res.getArray();
 
     // setup last movie
-    var lasmov = db.find({lastMovieId:/.*/});
+    var lasmov = db.find({lastMoviePid:/.*/});
     if ( lasmov.length > 0 ) {
-      var lmid = lasmov._data[0].lastMovieId;
+      var lmpid = lasmov._data[0].lastMoviePid;
       for ( var index = 0, ml = menu.movies.length; index < ml; index++ ) {
-        if ( lmid === menu.movies[index]._id )
-          menu.lastMov = index;
+        if ( lmpid === menu.movies[index].pid ) {
+          menu.lastMov = lmpid;
+          menu.lastSec = menu.movies.length > 0 ? menu.movies[index].resumeSec : 0;
+          break;
+        }
       }
-      var x = db.find( {_id:lmid} );
-      menu.lastSec = x.length > 0 ? x._data[0].resumeSec : 0;
     }
 
     // setup last deleted

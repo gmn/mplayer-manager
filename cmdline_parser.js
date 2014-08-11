@@ -48,6 +48,8 @@
       p( '-l                play last played' );
       p( '-s                set directory file is in' );
       p( '-nc               force-start a new config' );
+      p( '-w                show files most watched' );
+      p( '-name <id> <name> sets files display_name to <name>' );
       process.exit(0);
     }
 
@@ -108,32 +110,35 @@ debugger;
     // -ci == change index
     if ( (ind=check_flag("-ci")) ) 
     {
-      arg1 = v[ ind + 1 ];
-      arg2 = v[ ind + 2 ];
+      var pid1 = Number( v[ ind + 1 ] );
+      var pid2 = Number( v[ ind + 2 ] );
 
-      if ( !arg1 || !arg2 ) {
+      if ( !pid1 || !pid2 || isNaN(pid1) || isNaN(pid2) ) {
         println( "-ci: expects 2 args: from INDEX and INDEX to insert before" );
         process.exit(0);
       }
 
-      if ( arg1 < 0 || arg1 >= menu.movies.length || arg2 < 0 || arg2 >= menu.movies.length ) {
+      if ( pid1 < 1 || pid1 > menu.highestUnwatchedPid() || pid2 < 1 || pid2 > menu.highestUnwatchedPid() ) {
         println ( "values out of range" );
         process.exit(0);
       }
 
-      // 
+      // last unset if indexes futzed with
       db.remove({lastMovieId:{$exists:true}});
 
+      var index1 = menu.indexFromPid(pid1);
+      var index2 = menu.indexFromPid(pid2);
+
       // get _id for index1, _id for index2
-      var id1 = menu.movies[arg1]._id;
-      var id2 = menu.movies[arg2]._id;
+      var id1 = menu.movies[index1]._id;
+      var id2 = menu.movies[index2]._id;
 
-      println( 'inserting "' + menu.movies[arg1].file + '" before "' + menu.movies[arg2].file + '"' );
+      println( 'inserting "' + menu.movies[index1].file + '" before "' + menu.movies[index2].file + '"' );
 
-      function row_by_id( r_id ) {
+      function row_by_pid( row_pid ) {
         var i = 0, l = db.master.length;
         for (; i < l; i++ ) {
-          if ( db.master[i]._id === r_id )
+          if ( db.master[i].pid === row_pid )
             return i;
         }
         return -1;
@@ -149,32 +154,37 @@ debugger;
       }
 
       // find row in db.master with (_id == id2)
-      var end_row = row_by_id( id2 );
-      var start_row = row_by_id( id1 );
       var highest_id = _highest_id();
+      var start_row = row_by_pid( pid1 );
+      var end_row = row_by_pid( pid2 );
 
-      // increment every index, starting with id2 to the end of the list
-      //  or until no row uses an index twice
+      // increment every unwatched pid, starting with the end of the list, down to and including pid2
       var row = -1;
-      var n = highest_id;
-      while ( n >= id2 ) 
+      var n = menu.highestUnwatchedPid();
+      while ( n >= pid2 ) 
       {
-        row = row_by_id(n);
+        row = row_by_pid(n);
         if ( row !== -1 ) {
-          db.master[row]._id++;
+          var t = db.master[row];
+          if ( !t.watched || t.watched === false )
+            db.master[row].pid++;
         }
         --n;
       }
 
-      // set index id1 to id2
-      db.master[start_row]._id = id2;
-      db.master[start_row].added = db.master[end_row].added;
+      // set index index1's pid to pid2, (now that pid2 is out of the way)
+      db.master[start_row].pid = pid2;
 
       // sort by _id asc
       db.master = db.master.sort(function(a,b){return a._id - b._id});
+      // closes occasional holes, left from deleting: FIXME: put this is 'delete' method
+      db.renormalize();
+      // tidy up pid
+      menu.renormalizeUnwatchedPid();
       db.save()
+
       process.exit(0);
-    } 
+    }
 
     // -a   add
     else if ( (ind=check_flag('-a')) ) 
@@ -190,17 +200,18 @@ debugger;
       var mov_arg = arg1;
       var dir_arg = arg2;
 
-      function finish(file,dir)
+      function finish( filename, dirname )
       {
+        var new_pid = menu.highestPid() + 1;
+        db.insert( {file:filename, dir:dirname, added:db.now(), pid: new_pid} );
         db.save();
-        dir = dir ? ', dir: "'+dir+'"' : '';
-        println( 'file: "' + file + '"'+dir+' added' );
+        dirname = dirname ? ', dir: "'+dirname+'"' : '';
+        println( 'file: "' + filename + '"'+dirname+' added' );
         process.exit(0);
       }
 
       // 1 - if the dir argument is supplied, just add file:arg1, dir:arg2 - no questions asked
       if ( dir_arg ) {
-        db.insert( {file:mov_arg,dir:dir_arg,added:db.now()} );
         finish( mov_arg, dir_arg );
       }
 
@@ -213,13 +224,11 @@ debugger;
       try {
         fs.statSync( fullpath );
       } catch(e) {
-        db.insert( {file:mov_arg,added:db.now()} );
         finish( mov_arg );
       }
 
       // 2 - see if its dirname is in the pathlist; if it is, just add basename
       if ( config.search_paths.indexOf( dirname ) > -1 ) {
-        db.insert( {file:basename,added:db.now()} );
         finish( basename );
       }
 
@@ -239,7 +248,6 @@ debugger;
 
       // 4 - if fails: add file:basename, dir:dirname
       else {
-        db.insert( {file:basename,dir:dirname,added:db.now()} );
         finish( basename, dirname );
       }
 
@@ -247,22 +255,21 @@ debugger;
       //   - see if dirname2 is in pathlist; 
       //     - if it is, add file:basename with "dir":"last_dir"
       if ( config.search_paths.indexOf( dirname2 ) > -1 ) {
-        db.insert( {file:basename,dir:last_dir,added:db.now()} );
         finish( basename, last_dir );
       }
 
       // - else 
       //      add file:basename with "dir":"dirname"
-      db.insert( {file:basename,dir:dirname,added:db.now()} );
       finish( basename, dirname );
     }
 
     // -dw dump watched
     else if ( check_flag('-dw') ) 
     {
-      var watched = db.find( {watched:true} ).sort( {_id:1} ).sort( {date_finished:1} ) ;
+      //var watched = db.find( {watched:true} ).sort( {_id:1} ).sort( {date_finished:1} ) ;
+      var watched = db.find( {watched:true} ).sort( {pid:1} );
       for ( var index = 0, length = watched.count(); index < length; index++ ) {
-        println( index +"\t"+ watched._data[index].file );
+        println( watched._data[index].pid +"\t"+ watched._data[index].file );
       }
       process.exit(0);
     } 
@@ -275,7 +282,7 @@ debugger;
           tab = "+\t";
         else
           tab = "\t";
-        println( index +tab+ menu.movies[index].file );
+        println( menu.movies[index].pid + tab + menu.movies[index].file );
       }
       process.exit(0);
     } 
@@ -320,6 +327,29 @@ debugger;
 
       db.update( {_id: menu.movies[arg1]._id}, {'$set':{"dir":arg2}} );
       db.save();
+      process.exit(0);
+    }
+
+    // -name
+    else if ( (ind=check_flag('-name')) )
+    {
+      arg1 = v[ ind + 1 ];
+      arg2 = v[ ind + 2 ];
+      if ( !arg1 || !arg2 ) {
+        println( 'usage: '+exename+' -name <id> <name_file_to_this>' );
+        process.exit(0);
+      }
+      process.exit(0);
+    }
+
+    // show watched
+    else if ( check_flag('-w') )
+    {
+      var res = db.find( {sec_watched:{$exists:true}}).sort( { sec_watched: -1 } );
+      for ( var i = 0, l = res._data.length; i < l; i++ ) {
+        var o = res._data[i];
+        println( i +"\t"+ o.sec_watched + "\t["+ o.pid + '] ' + o.file );
+      }
       process.exit(0);
     }
 

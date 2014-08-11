@@ -20,12 +20,22 @@ X cmdline option to
     - IMMEDIATELY ADD A FILE, 
     - DETERMINE ITS LOCATION AUTOMATICALLY, and if its not in the path list, 
     - AUTOMATICALLY CREATE A "DIR" ENTRY
+X option to print out list of things watched, ordered by sec_watched
+X save the num_last_watched: most recent watched
+X rewrite the db format to include PERMANENT_INDEX, to simplify ordering them  (its buggy now)
+  X two sets of movid: 1-N watched:true, 1-N watched:false
+  X write pid by hand into movies.db
+  X display code
+  X load code
+  X order code
+  X change index code
+  X call renormalize() in '-ci' function
+  X put '[pid]' in -watched flag
+
+
+* move 'vid' script into watch.js
 
 * movies can have optional DISPLAY_NAME that appears instead of their filename. If you edit the "name" of a file, it creates a display_name and shows that instead
-
-* rewrite the db format to include indexes, to simplify ordering them  (its buggy now)
-  * also, 3-5 most recent watched
-  * also, time stats per-file. how many seconds did you spend watching a particular thing?
 
 * This module is intended to be installed globally with 'npm install -g'
 
@@ -45,7 +55,6 @@ N ability to edit array of paths in setup
   1) commandline
   2) browser
 
-* move 'vid' script into watch.js
 
 * rememember options per movie
 

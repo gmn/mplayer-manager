@@ -10,7 +10,7 @@
     "start": "node ./watch.js"
   },
   "dependencies": {
-    "queryable": "~0.2.5"
+    "queryable": "~0.2.6"
   },
   "engines": {
     "node": "0.10.x"
