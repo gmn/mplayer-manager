@@ -3,14 +3,15 @@
 //  - parses options from the commandline
 
 
-(function(){
-
+(function()
+{
   var PATH = require('path');
   var fs = require('fs');
+  var lib = require('./lib.js');
+  var print = lib.print;
+  var println = lib.println;
 
   // 
-  var print = function(s){ process.stdout.write(s) }
-  var println = function(s){ process.stdout.write(s+"\n") }
   var exename = process.argv[1].substring( process.argv[1].lastIndexOf('/')+1, process.argv[1].length);
 
 
@@ -363,7 +364,7 @@ debugger;
         var tab = o.watched ? '  w  ' : '     ';
         if ( menu.lastMov == o.pid ) 
           tab = '  t  ';
-        println( i + tab + o.sec_watched + "\t["+ o.pid + '] ' + name );
+        println( i + tab + lib.secToHMS(o.sec_watched) + "\t["+ o.pid + '] ' + name );
       }
       process.exit(0);
     }

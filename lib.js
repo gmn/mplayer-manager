@@ -2,11 +2,26 @@
 // lib.js - collection of helper functions & classes 
 //
 
-(function() {
-
+(function() 
+{
     var fs = require('fs');
     var util = require('util');
     var path = require('path');
+
+
+    function println(str) {
+      if ( !str )
+        process.stdout.write( "\n" );
+      else
+        process.stdout.write( str + "\n" );
+    }
+    exports.println = println;
+
+    function print(str) {
+      process.stdout.write( str );
+    }
+    exports.print = print;
+
 
     function type_of( v ) {
         var s = typeof v;
@@ -219,7 +234,24 @@
     }
     exports.objIsEmpty = objIsEmpty;
 
+    function secToHMS( sec ) {
+      function lz(n) {
+        n = n + '';
+        if ( n && n.length === 1 )
+          return '0'+n;
+        return n;
+      }
+      var m = Math.floor(sec / 60);
+      var s = sec - m * 60;
+      var h = Math.floor(m / 60);
+      if ( h > 0 ) 
+        m = m - h * 60;
+      return lz(h)+':'+lz(m)+':'+lz(s);
+    }
+    exports.secToHMS = secToHMS;
 
+    //[47,87,247,1223,1247,4700,8743].forEach(function(x){println(x +"\t"+secToHMS(x));});
+  
 })();
 
 

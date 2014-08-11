@@ -10,6 +10,8 @@
   var lib = require( './lib.js' );
   var type_of = lib.type_of;
   var trunc_string = lib.trunc_string;
+  var println = lib.println;
+  var print = lib.print;
 
   var queryable = require( 'queryable' );
   var db = null;
@@ -44,17 +46,6 @@
     preplay_timeout: 1200,
     vidplayer_silence: 1,
     num_last_watched: 5
-  };
-
-  var println = function(str) {
-    if ( !str )
-      stdout.write( "\n" );
-    else
-      stdout.write( str + "\n" );
-  };
-
-  var print = function(str) {
-    stdout.write( str );
   };
 
   function MovieRow(o) {
@@ -93,6 +84,7 @@
         { ent: '[m] mark as watched', f: null_f },
         { ent: '[u] mark un-watched', f: null_f },
         { ent: '[w] list watched', f: null_f },
+        { ent: '[f] find files that match string fragment', f: null_f },
         { ent: '[q] quit', f: null_f }
     ];
 
@@ -271,13 +263,24 @@
 
       println('Child process exited with code: ' + code);
       println('Last movie second watched: ' + menu.lastSec );
-      println('Watched: '+total_sec_this_run +'s this run for total: '+total_sec+'s' );
+      println('Watched: '+lib.secToHMS(total_sec_this_run) +' this run for a total: '+lib.secToHMS(total_sec) );
       menu.print();
       rl.prompt();
 
       menu.movies[index].resumeSec = menu.lastSec; // set this key for this movie
       db.update( {_id:menu.movies[index]._id}, {'$set':{'resumeSec':menu.lastSec,'sec_watched':total_sec}} );
       db.save();
+      reload_movies_list(); // synchronizes menu from db
+
+/*
+FIXME: having two copies of this meta-data laying around causes confusion.
+      Is there a better design principle to work from? I think there is.
+      I mean, this method works, but it is prone to mistakes. You need to
+      populate an array of custom class objects with customized methods for
+      this specific datatype, but then also provide the db functionality
+      for selective updates and powerful control. and only save to the actual
+      DB on rare occasions.
+*/
 
       menu.startOverPid = -1; // reset this always afterwards
     });
@@ -375,11 +378,11 @@
 
   function play_movie( pid, resume_sec )
   {
-    var n = menu.indexFromPid(pid);
+    var menu_index = menu.indexFromPid(pid);
 
-    var fullpath = find_file( menu.movies[n].file, (menu.movies[n].dir ? menu.movies[n].dir : null) );
+    var fullpath = find_file( menu.movies[menu_index].file, (menu.movies[menu_index].dir ? menu.movies[menu_index].dir : null) );
     if ( !fullpath ) {
-      print( "file: \""+menu.movies[n].file+"\" does not exist or can't be found" );
+      print( "file: \""+menu.movies[menu_index].file+"\" does not exist or can't be found" );
       return;
     }
 
@@ -397,7 +400,7 @@
     var args = mplayer_run_args();
 
     menu.lastMov = pid;
-    db.update({'lastMoviePid':/.*/},{'$set':{'lastMoviePid':menu.movies[n]['pid']}},{'upsert':true});
+    db.update({'lastMoviePid':/.*/},{'$set':{'lastMoviePid':menu.movies[menu_index]['pid']}},{'upsert':true});
     db.save();
 
 /*
@@ -427,7 +430,7 @@ FIXME: broke
       print( "running: \"mplayer "+args.join(' ')+'"' );
     }
 
-    dotdotdot( config.preplay_timeout, function() { system( n, 'mplayer', args ); } );
+    dotdotdot( config.preplay_timeout, function() { system( menu_index, 'mplayer', args ); } );
   } // play_movie
 
   function dotdotdot( timeout, func ) {
@@ -543,6 +546,27 @@ FIXME: broke
         reload_movies_list();
       }
     }
+
+    // find 'f'
+    else if ( read_options === 6 )
+    {
+      read_options = 0;
+
+      var reg = new RegExp( line, 'ig' );
+
+      var r = db.find( {$or:[{file:reg},{display_name:reg}]} );
+
+      for ( var i = 0, l = r.length; i<l; i++ ) {
+        var o = r._data[i];
+        var tab = o.watched ? '  w  ' : '     ';
+        if ( menu.lastMov == o.pid )
+          tab = '  t  ';
+        var name = o.display_name ? o.display_name + ' ('+o.file+')' : o.file;
+        println( '['+o.pid+']' + tab + name );
+      }
+
+    }
+
     else 
     {
       if ( read_options === 2 /* start file at beginning */ ) { 
@@ -596,6 +620,10 @@ FIXME: broke
       case 'x':
           print( "delete which> " );
           read_options = 5;
+          break;
+      case 'f':
+          print( 'find files that match> ' );
+          read_options = 6;
           break;
       case 27: /* doesn't work */
           print( "ESC" );
