@@ -134,62 +134,52 @@ debugger;
       }
 
       // last unset if indexes futzed with
-      db.remove({lastMovieId:{$exists:true}});
+      db.remove({lastMoviePid:{$exists:true}});
 
       var index1 = menu.indexFromPid(pid1);
       var index2 = menu.indexFromPid(pid2);
 
       // get _id for index1, _id for index2
-      var id1 = menu.movies[index1]._id;
-      var id2 = menu.movies[index2]._id;
+      //var id1 = menu.movies[index1]._id;
+      //var id2 = menu.movies[index2]._id;
 
-      println( 'inserting "' + menu.movies[index1].file + '" before "' + menu.movies[index2].file + '"' );
+      println( 'inserting ['+pid1+'] "' + menu.movies[index1].name() + '" before ['+pid2+'] "' + menu.movies[index2].name() + '"' );
 
       function row_by_pid( row_pid ) {
         var i = 0, l = db.master.length;
         for (; i < l; i++ ) {
-          if ( db.master[i].pid === row_pid )
-            return i;
+          var t = db.master[i];
+          if ( !t.watched || t.watched === false )
+            if ( t.file && t.pid && t.pid === row_pid )
+              return i;
         }
         return -1;
       }
 
-      function _highest_id() {
-        var i = 0, l = db.master.length, h = -1;
-        for (; i < l; i++ ) {
-          if ( db.master[i]._id > h )
-            h = db.master[i]._id;
-        }
-        return h;
-      }
-
-      // find row in db.master with (_id == id2)
-      var highest_id = _highest_id();
       var start_row = row_by_pid( pid1 );
-      var end_row = row_by_pid( pid2 );
+      //var end_row = row_by_pid( pid2 );
 
-      // increment every unwatched pid, starting with the end of the list, down to and including pid2
-      var row = -1;
-      var n = menu.highestUnwatchedPid();
-      while ( n >= pid2 ) 
-      {
-        row = row_by_pid(n);
-        if ( row !== -1 ) {
-          var t = db.master[row];
-          if ( !t.watched || t.watched === false )
-            db.master[row].pid++;
-        }
-        --n;
+      /*
+      - go down all rows of master; look for not watched
+      - if not watched and pid >= pid2, then increment
+      */
+      // increment every unwatched pid greater than and including pid2
+      var row = db.master.length;
+      while ( --row >= 0 ) {
+        var t = db.master[row];
+        if ( !t.watched || t.watched === false )
+          if ( t.file && t.pid && t.pid >= pid2 )
+            t.pid++;
       }
 
       // set index index1's pid to pid2, (now that pid2 is out of the way)
       db.master[start_row].pid = pid2;
 
-      // sort by _id asc
+      // sort by _id asc, and take gaps out of _id
       db.master = db.master.sort(function(a,b){return a._id - b._id});
-      // closes occasional holes, left from deleting: FIXME: put this is 'delete' method
       db.renormalize();
-      // tidy up pid
+
+      // take gaps out of Unwatched pid in db
       menu.renormalizeUnwatchedPid();
       db.save()
 
@@ -369,7 +359,11 @@ debugger;
       var res = db.find( {sec_watched:{$exists:true}}).sort( { sec_watched: -1 } );
       for ( var i = 0, l = res._data.length; i < l; i++ ) {
         var o = res._data[i];
-        println( i +"\t"+ o.sec_watched + "\t["+ o.pid + '] ' + o.file );
+        var name = o.display_name ? o.display_name : o.file;
+        var tab = o.watched ? '  w  ' : '     ';
+        if ( menu.lastMov == o.pid ) 
+          tab = '  t  ';
+        println( i + tab + o.sec_watched + "\t["+ o.pid + '] ' + name );
       }
       process.exit(0);
     }

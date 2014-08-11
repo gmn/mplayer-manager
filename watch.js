@@ -146,14 +146,14 @@
     },
     renormalizeUnwatchedPid: function( starting ) {
       var start_id = starting ? starting : 0;
-      var res = db.find( {$or:[{watched:false},{watched:{$exists:false}}]} ).sort( {pid:1} );
+      var res = db.find( {file:{$exists:true},$or:[{watched:false},{watched:{$exists:false}}]} ).sort( {pid:1} );
       for ( var i = start_id, l = res._data.length; i<l; i++ ) {
         db.update( {_id:res._data[i]._id}, {$set:{pid:i+1}} );
       }
     },
     renormalizeWatchedPid: function( starting ) {
       var start_id = starting ? starting : 0;
-      var res = db.find( {watched:true} ).sort( {pid:1} );
+      var res = db.find( {watched:true,file:{$exists:true}} ).sort( {pid:1} );
       for ( var i = start_id, l = res._data.length; i<l; i++ ) {
         db.update( {_id:res._data[i]._id}, {$set:{pid:i+1}} );
       }
@@ -263,14 +263,15 @@
         println( 'stderr: ' + data );
     });
 
-    p.on('close', function (code) {
-      println('child process exited with code ' + code);
-      println('last sec watched: ' + menu.lastSec);
-
+    p.on('close', function (code) 
+    {
       end_sec = Math.round(Date.now()*0.001);
       var total_sec_this_run = end_sec - start_sec;
       var total_sec = (menu.movies[index].sec_watched ? menu.movies[index].sec_watched : 0) + total_sec_this_run;
 
+      println('Child process exited with code: ' + code);
+      println('Last movie second watched: ' + menu.lastSec );
+      println('Watched: '+total_sec_this_run +'s this run for total: '+total_sec+'s' );
       menu.print();
       rl.prompt();
 
@@ -455,7 +456,7 @@ FIXME: broke
       read_options = 0;
     } 
 
-    // mark file
+    // mark unwatched file as watched
     else if ( read_options === 3 ) {
       read_options = 0;
       var pid = Number( line.trim() );
@@ -520,7 +521,7 @@ FIXME: broke
       }
     } 
 
-    // remove file from db
+    // remove file from db, aka~ delete
     else if ( read_options === 5 ) 
     {
       read_options = 0;
@@ -528,11 +529,14 @@ FIXME: broke
 
       if ( line.trim().length === 0 || isNaN( delete_pid ) ) {
         println( "That's not a movie index, silly." );
-      } else if ( delete_pid < 0 || delete_pid >= menu.movies.length ) {
+      } else if ( delete_pid < 1 || delete_pid > menu.highestWatchedPid() ) {
         println( "Not in range" );
       } else {
         var delete_index = menu.indexFromPid(delete_pid);
-        var res = db.remove( {_id:menu.movies[delete_index]._id} );
+        db.remove( {_id:menu.movies[delete_index]._id} );
+        db.remove({lastMoviePid:{$exists:true}});
+        menu.renormalizeUnwatchedPid();
+        db.renormalize();
         db.save();
         println( "\nMovie: \""+menu.movies[delete_index].name()+'" deleted permanently from '+config.movies_db_name );
         menu.setLastDeleted( menu.movies[delete_index].name() );
