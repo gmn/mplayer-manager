@@ -372,7 +372,7 @@ debugger;
         var name = o.display_name ? o.display_name : o.file;
         var tab = o.watched ? '  w  ' : '     ';
         if ( menu.lastMov == o.pid ) 
-          tab = '  t  ';
+          tab = '  L  ';
         println( i + tab + lib.secToHMS(o.sec_watched) + "\t["+ o.pid + '] ' + name );
       }
       println("----------------------------------");
@@ -389,7 +389,7 @@ debugger;
         res._data.forEach(function(x,i){
           var tab = x.watched ? '  w  ' : '     ';
           if ( menu.lastMov == x.pid ) 
-            tab = '  t  ';
+            tab = '  L  ';
           i++;
           println(i+tab+'['+x.pid+'] '+(x.display_name?x.display_name:x.file));
         });

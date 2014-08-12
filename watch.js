@@ -86,6 +86,7 @@
         { ent: '[w] list watched', f: null_f },
         { ent: '[f] find files matching fragment', f: null_f },
         { ent: '[lp] show last played', f: null_f },
+        { ent: '[d] toggle DVD mode', f: dvd_f },
         { ent: '[q] quit', f: null_f }
     ];
 
@@ -459,10 +460,11 @@ FIXME: broke
         var o = r._data[i];
         var tab = o.watched ? '  w  ' : '     ';
         if ( menu.lastMov == o.pid )
-          tab = '  t  ';
-        //var name = o.display_name ? o.display_name + ' ('+o.file+')' : o.file;
-        var name = o.display_name ? o.display_name : o.file;
-        println( ' ['+o.pid+']' + tab + name );
+          tab = '  L  ';
+        //var name = o.display_name ? o.display_name : o.file;
+        var name = o.display_name ? o.display_name + '   {{'+o.file+'}}' : o.file;
+        var xtra = o.resumeSec ? ' (@'+o.resumeSec+')' : '';
+        println( ' ['+o.pid+']' + tab + name + xtra );
       }
     }
 
@@ -637,7 +639,7 @@ FIXME: broke
       case 'lp':
           var res = db.find( {last_played:{$exists:true},$or:[{watched:{$exists:false}},{watched:false}]} ).sort({last_played:-1}).limit(config.last_played_num);
           if ( res && res._data && res.length > 0 )
-            res._data.forEach(function(x,i){i++;println(i+"\t["+x.pid+'] '+(x.display_name?x.display_name:x.file));});
+            res._data.forEach(function(x,i){println((i+1)+"\t["+x.pid+"]\t"+(x.display_name?x.display_name:x.file));});
           else
             println( "none played" );
           break;
