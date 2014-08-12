@@ -209,7 +209,7 @@ debugger;
         var res = db.find( {file:filename} );
         if ( res.length > 0 ) {
           var xtra = res.length > 1 ? res.length + ' times': '';
-          println( 'filename: "' + filename + '" already exists ' + xtra );
+          println( "\n ****WARNING: filename: \"" + filename + '" already exists ' + xtra + "\n" );
         }
 
         var new_pid = menu.highestUnwatchedPid() + 1;
@@ -391,7 +391,8 @@ debugger;
           if ( menu.lastMov == x.pid ) 
             tab = '  L  ';
           i++;
-          println(i+tab+'['+x.pid+'] '+(x.display_name?x.display_name:x.file));
+        
+          println(lib.unixToAlpha(x.last_played)+tab+'['+x.pid+'] '+(x.display_name?x.display_name:x.file));
         });
       } else
         println( "none played" );

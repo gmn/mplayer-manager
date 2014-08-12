@@ -234,13 +234,14 @@
     }
     exports.objIsEmpty = objIsEmpty;
 
+    function lz(n) {
+      n = n + '';
+      if ( n && n.length === 1 )
+        return '0'+n;
+      return n;
+    }
+
     function secToHMS( sec ) {
-      function lz(n) {
-        n = n + '';
-        if ( n && n.length === 1 )
-          return '0'+n;
-        return n;
-      }
       var m = Math.floor(sec / 60);
       var s = sec - m * 60;
       var h = Math.floor(m / 60);
@@ -251,6 +252,25 @@
     exports.secToHMS = secToHMS;
 
     //[47,87,247,1223,1247,4700,8743].forEach(function(x){println(x +"\t"+secToHMS(x));});
+
+    // expects seconds from the Unix Epoch (not millisec)
+    // returns YYMMDD_HHMMSS
+    function unixToAlpha( u ) {
+      var d = new Date( u * 1000 );
+
+      //var YY = d.getFullYear();
+      var YY = d.getFullYear() - 2000;
+      var MM = (d.getMonth()+1);
+      var DD = d.getDate();
+
+      var HH = d.getHours();
+      var mi = d.getMinutes();
+      var SS = d.getSeconds();
+
+      return lz(YY)+lz(MM)+lz(DD)+'_'+lz(HH)+lz(mi)+lz(SS);
+    }
+    exports.unixToAlpha = unixToAlpha;
+
   
 })();
 
