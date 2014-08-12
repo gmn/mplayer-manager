@@ -6,12 +6,12 @@
 (function() 
 {
   var fs = require('fs');
-
   var lib = require( './lib.js' );
-  var type_of = lib.type_of;
-  var trunc_string = lib.trunc_string;
-  var println = lib.println;
-  var print = lib.print;
+  // aliases
+  var type_of       = lib.type_of;
+  var trunc_string  = lib.trunc_string;
+  var println       = lib.println;
+  var print         = lib.print;
 
   var queryable = require( 'queryable' );
   var db = null;
@@ -45,7 +45,7 @@
     autoconfig_done: 0,
     preplay_timeout: 1200,
     vidplayer_silence: 1,
-    num_last_watched: 5
+    last_played_num: 5
   };
 
   function MovieRow(o) {
@@ -74,17 +74,18 @@
     var del_f = function() { return that.lastDeleted === '' ? '' : ' (last: "'+trunc_string(that.lastDeleted,40)+'")' };
 
     this.entries = [
-        { ent: '[p] print movies', f: null_f },
+        { ent: '[p] print movie list', f: null_f },
         { ent: '[#] type number to play/resume movie', f: null_f },
         { ent: '[x] delete movie', f: del_f },
-        { ent: '[o] set options', f: opt_f },
+        { ent: '[o] set video player options', f: opt_f },
         { ent: '[s] start movie from beginning', f: null_f },
         { ent: '[l] resume last played', f: last_f },
         { ent: '[t] toggle vidplayer output', f: out_f },
         { ent: '[m] mark as watched', f: null_f },
-        { ent: '[u] mark un-watched', f: null_f },
+        { ent: '[u] mark as un-watched', f: null_f },
         { ent: '[w] list watched', f: null_f },
         { ent: '[f] find files matching fragment', f: null_f },
+        { ent: '[lp] show last played', f: null_f },
         { ent: '[q] quit', f: null_f }
     ];
 
@@ -274,7 +275,7 @@ debugger;
       reload_movies_list(); // synchronizes menu from db
 
 /*
-FIXME: having two copies of this meta-data laying around causes confusion.
+FIXME: having two copies of this meta-data laying around causes confusion: {menu.movies & db.master}
       Is there a better design principle to work from? I think there is.
       I mean, this method works, but it is prone to mistakes. You need to
       populate an array of custom class objects with customized methods for
@@ -420,7 +421,6 @@ FIXME: broke
     }
 
     if ( options ) {
-      //args.push( "-opts" );
       args = args.concat( options.split(/[\s]+/) );
     }
     args.push( fullpath );
@@ -431,7 +431,10 @@ FIXME: broke
       print( "running: \"mplayer "+args.join(' ')+'"' );
     }
 
-    dotdotdot( config.preplay_timeout, function() { system( menu_index, 'mplayer', args ); } );
+    dotdotdot( config.preplay_timeout, function() { 
+      db.update( {_id:menu.movies[menu_index]._id}, {'$set':{'last_played': Math.round(Date.now()*0.001)}} );
+      system( menu_index, 'mplayer', args ); 
+    } );
   } // play_movie
 
   function dotdotdot( timeout, func ) {
@@ -445,6 +448,24 @@ FIXME: broke
   {
     if ( menu && menu.movies && menu.movies.length === 0 )
       reload_movies_list();
+
+    function print_partial_matches( line )
+    {
+      var reg = new RegExp( line, 'ig' );
+      var r = db.find( {$or:[{file:reg},{display_name:reg}]} );
+      println( "\n --> " + r.length + " matches found for: \""+line+"\"\n" );
+
+      for ( var i = 0, l = r.length; i<l; i++ ) {
+        var o = r._data[i];
+        var tab = o.watched ? '  w  ' : '     ';
+        if ( menu.lastMov == o.pid )
+          tab = '  t  ';
+        //var name = o.display_name ? o.display_name + ' ('+o.file+')' : o.file;
+        var name = o.display_name ? o.display_name : o.file;
+        println( ' ['+o.pid+']' + tab + name );
+      }
+    }
+
 
     playing = 0;
 
@@ -552,22 +573,7 @@ FIXME: broke
     else if ( read_options === 6 )
     {
       read_options = 0;
-
-      var reg = new RegExp( line, 'ig' );
-
-      var r = db.find( {$or:[{file:reg},{display_name:reg}]} );
-
-      println( "\n --> " + r.length + " matches found\n" ); 
-
-      for ( var i = 0, l = r.length; i<l; i++ ) {
-        var o = r._data[i];
-        var tab = o.watched ? '  w  ' : '     ';
-        if ( menu.lastMov == o.pid )
-          tab = '  t  ';
-        var name = o.display_name ? o.display_name + ' ('+o.file+')' : o.file;
-        println( ' ['+o.pid+']' + tab + name );
-      }
-
+      print_partial_matches(line);
     }
 
     else 
@@ -628,6 +634,13 @@ FIXME: broke
           print( 'find files that match> ' );
           read_options = 6;
           break;
+      case 'lp':
+          var res = db.find( {last_played:{$exists:true},$or:[{watched:{$exists:false}},{watched:false}]} ).sort({last_played:-1}).limit(config.last_played_num);
+          if ( res && res._data && res.length > 0 )
+            res._data.forEach(function(x,i){i++;println(i+"\t["+x.pid+'] '+(x.display_name?x.display_name:x.file));});
+          else
+            println( "none played" );
+          break;
       case 27: /* doesn't work */
           print( "ESC" );
           read_options = 0;
@@ -637,8 +650,9 @@ FIXME: broke
           var pid = Number(line.trim());
           if ( line.length === 0 ) {
               // do nothing
-          } else if ( typeof pid !== "number" ) {
-              println( 'Not sure if I\'ve heard of "' + line.trim() + '"' );
+          } else if ( typeof pid !== "number" || isNaN(pid) ) {
+              //println( 'No file exactly mat "' + line.trim() + '"' );
+              print_partial_matches( line );
           } else if ( pid >= 1 && pid <= menu.highestUnwatchedPid() ) {
               if ( menu.startOverPid !== -1 ) {
                   play_movie( menu.startOverPid );
@@ -648,7 +662,7 @@ FIXME: broke
                   play_movie( pid, menu.movies[n].resumeSec ? menu.movies[n].resumeSec : 0 );
               }
           } else {
-              println( "selection out of range!" );
+              println( 'selection "' + pid + '" out of range!' );
           }
           break;
       }

@@ -52,6 +52,7 @@
       p( '-w                show files most watched' );
       p( '-rn <id> <name>   sets files display_name to <name>' );
       p( '-pc               print current config' );
+      p( '-lp               print last played' );
       process.exit(0);
     }
 
@@ -204,6 +205,13 @@ debugger;
 
       function finish( filename, dirname )
       {
+        // report if filename already exists, but dont block insertion 
+        var res = db.find( {file:filename} );
+        if ( res.length > 0 ) {
+          var xtra = res.length > 1 ? res.length + ' times': '';
+          println( 'filename: "' + filename + '" already exists ' + xtra );
+        }
+
         var new_pid = menu.highestUnwatchedPid() + 1;
         db.insert( {file:filename, dir:dirname, added:db.now(), pid: new_pid} );
         db.save();
@@ -268,7 +276,6 @@ debugger;
     // -dw dump watched
     else if ( check_flag('-dw') ) 
     {
-      //var watched = db.find( {watched:true} ).sort( {_id:1} ).sort( {date_finished:1} ) ;
       var watched = db.find( {watched:true} ).sort( {pid:1} );
       for ( var index = 0, length = watched.count(); index < length; index++ ) {
         var name = watched._data[index].display_name ? watched._data[index].display_name : watched._data[index].file;
@@ -354,7 +361,7 @@ debugger;
       process.exit(0);
     }
 
-    // show watched seconds, sorting by longest
+    // show watched seconds, sorting by longest watched
     else if ( check_flag('-w') )
     {
       var res = db.find( {sec_watched:{$exists:true}}).sort( { sec_watched: -1 } );
@@ -369,12 +376,29 @@ debugger;
         println( i + tab + lib.secToHMS(o.sec_watched) + "\t["+ o.pid + '] ' + name );
       }
       println("----------------------------------");
-      println('  ' + lib.secToHMS(tot) + ' seconds watched total' );
+      println('  ' + lib.secToHMS(tot) + ' total time watched' );
       println("----------------------------------");
       process.exit(0);
     }
 
-    // print
+    // this shows all last played last played
+    else if ( check_flag( '-lp' ) )
+    {
+      var res = db.find( {last_played:{$exists:true}} ).sort({last_played:-1});
+      if ( res && res._data && res.length > 0 ) {
+        res._data.forEach(function(x,i){
+          var tab = x.watched ? '  w  ' : '     ';
+          if ( menu.lastMov == x.pid ) 
+            tab = '  t  ';
+          i++;
+          println(i+tab+'['+x.pid+'] '+(x.display_name?x.display_name:x.file));
+        });
+      } else
+        println( "none played" );
+      process.exit(0);
+    }
+
+    // spit out the config to stdout
     else if ( check_flag('-pc') ) {
       println( JSON.stringify(config,null,'  ') );
       process.exit(0);
