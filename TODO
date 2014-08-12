@@ -34,17 +34,18 @@ X rewrite the db format to include PERMANENT_INDEX, to simplify ordering them  (
 X movies can have optional DISPLAY_NAME that appears instead of their filename. If you edit the "name" of a file, it creates a display_name and shows that instead
 X move 'vid' script into watch.js
 N ability to edit array of paths in setup
+X even MORE intelligent path searching, using 'find /dir -name <file>'
+  algorithm: go through path list. 
+  X Or just get array of sub-dirs in each search-path, and look for the file in those.
+
 
 
 * This module is intended to be installed globally with 'npm install -g'
 
 * have a /usr/bin/watch script which calls 'node /location_of_watch.js'
+
 * interactive installation of run-script in /usr/bin/
   - asks for root pass to install
-
-* even MORE intelligent path searching, using 'find /dir -name <file>'
-  algorithm: go through path list. 
-  * Or just get array of sub-dirs in each search-path, and look for the file in those.
 
 * playlist: way to {create, edit, delete, execute} multiple playlists
 
@@ -57,15 +58,15 @@ N ability to edit array of paths in setup
 
 * way to play watched movies
 
-    - TAB-completion <-- tab &/or getch() doesn't work in any input mode
-        TAB-completion control wishlist:
-        1 - press [w] Watch...; a prompt comes up. "watch what?> "
-        2 - press 'J', 
-        2b -then press TAB; available movies that start with J will appear in alphabetical order
-        3 - press ESC to clear the line
-        4 - press REturn to accept a choice
-        5 - press more letters to narrow it down some
-        6 - press up and down arrows to move selector, and ENTER to select
+- TAB-completion <-- tab &/or getch() doesn't work in any input mode
+    TAB-completion control wishlist:
+    1 - press [w] Watch...; a prompt comes up. "watch what?> "
+    2 - press 'J', 
+    2b -then press TAB; available movies that start with J will appear in alphabetical order
+    3 - press ESC to clear the line
+    4 - press REturn to accept a choice
+    5 - press more letters to narrow it down some
+    6 - press up and down arrows to move selector, and ENTER to select
 
 * explicit video size modifier menu option
 
@@ -75,4 +76,4 @@ N ability to edit array of paths in setup
 
 - put on a lock when running, so if external shell adds file, it prints an error
 
-
+- could you just integrate file searching into the 'watch>' prompt, so that anything that didn't match a commandline switch or Number(), returns a partial match against every file in the db and prints the list. This alleviates having to specify a search explicitly. ??
