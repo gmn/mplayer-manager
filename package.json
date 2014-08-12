@@ -1,18 +1,56 @@
 {
   "name": "mplayermanager",
   "version": "0.0.1",
+  "description": "A commandline interface for mplayer written in node",
+  "main": "watch.js",
   "author": {
     "name": "Greg Naughton",
     "email": "greg@naughton.org"
   },
-  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gmn/mplayer-manager.git"
+  },
+  "homepage": "http://github.com/gmn/mplayer-manager",
+  "files": [
+    "watch.js",
+    "cmdline_parser.js",
+    "config_helper.js"
+  ],
+  "private": false,
   "scripts": {
     "start": "node ./watch.js"
   },
   "dependencies": {
-    "queryable": "~0.2.6"
+    "queryable": "~0.2.8"
   },
   "engines": {
     "node": "0.10.x"
-  }
+  },
+  "keywords": [
+    "mplayer",
+    "mkv",
+    "matroska",
+    "vlc",
+    "videolan",
+    "playlist",
+    "codec",
+    "avi",
+    "movie",
+    "film",
+    "video",
+    "player",
+    "mpeg",
+    "mp4",
+    "cmdline",
+    "commandline",
+    "videoplayer",
+    "movieplayer"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gmn/mplayer-manager/issues"
+  },
+  "readmeFilename": "README.md",
+  "readme":"\nMplayer Manager\n===============\n\nA commandline interface for mplayer. It manages a database of movies and playlists, \nhelping you to keep track of what is still in your queue and what you have watched already. \nIt keeps track of where you left off viewing each file and quick-resumes viewing again at that location.\n\nThis app is basically a helper tool for obsessive people who like to be watching a large number\nof movie files at any one time. It speeds up the process of finding, loading and resuming the files,\nas well as easing the process of keeping track of them all. It does all of that for you. \nAs well of keeping a tally on what you have watched, for the extremely perversely curious.\n\nAll you have to do to use it is add a new movie by running ```watch -a <movie>```, and then enter \ninteractive mode with ```watch```, and select the movie to watch it.\n\nNote: you must have updated version of mplayer and node.js installed.\n\nAuthor: Greg Naughton greg@naughton.org\n"
 }
