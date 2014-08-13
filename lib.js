@@ -271,6 +271,12 @@
     }
     exports.unixToAlpha = unixToAlpha;
 
+    function daynum() {
+      var d = new Date();
+      var Y = d.getFullYear();
+      var M = d.getMonth();
+      return Y * 365 + [0,31,28,31,30,31,30,31,31,30,31,30,31].slice(0,M).reduce(function(x,y){return x+y}) + d.getDate();
+    }
   
 })();
 
