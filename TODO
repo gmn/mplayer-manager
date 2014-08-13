@@ -40,6 +40,12 @@ X even MORE intelligent path searching, using 'find /dir -name <file>'
 X integrate file searching into the 'watch>' prompt, so that anything that didn't match a commandline switch or Number(), returns a partial match against every file in the db and prints the list. This alleviates having to specify a search explicitly. ??
 X lastPlayed is an array. saves/shows the config.num_last_watched,
 
+- watch -l 2, watch -l 3
+- watch> l 2  ...
+
+- better abstraction between core functions and interface
+- better functionality design (can't do some things in interactive mode that
+    you can from cmdline switches and vice-versa)
 
 * This module is intended to be installed globally with 'npm install -g'
 

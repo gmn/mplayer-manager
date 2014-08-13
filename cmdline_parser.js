@@ -47,10 +47,11 @@
       p( '<#>               play movie with index <#>' );
       p( '-a <file> [dir]   add file, dir is optional' );
       p( '-l                play last played' );
-      p( '-s <id>           set directory file is in' );
+      p( '-sd <id>          set directory file is in' );
       p( '-nc               force-start a new config' );
-      p( '-w                show files most watched' );
-      p( '-rn <id> <name>   sets files display_name to <name>' );
+      p( '-wt               show files\' play times, sorted by time' );
+      p( '-rn <id> <name>   sets file\'s real name to <name>' );
+      p( '-dn <id> <name>   sets file\'s display_name (leaves filename alone)' );
       p( '-pc               print current config' );
       p( '-lp               print last played' );
       process.exit(0);
@@ -297,7 +298,7 @@ debugger;
       process.exit(0);
     } 
 
-    // -l ==> last
+    // -l ==> play last
     else if ( check_flag('-l') ) 
     {
       if ( menu.lastMov === -1 ) {
@@ -308,15 +309,15 @@ debugger;
       }
     }
 
-    // -s ==> set
-    else if ( (ind=check_flag('-s')) ) 
+    // -sd ==> set directory
+    else if ( (ind=check_flag('-sd')) ) 
     {
       var pid       = Number( v[ ind + 1 ] );
       var new_name  = v[ ind + 2 ];
 
       if ( !pid || isNaN(pid) || pid < 1 || pid > menu.highestUnwatchedPid() ) {
         println ( "first value out of range, or not a number." );
-        println( "-s: expects 1 or 2 arguments" );
+        println( "-sd: expects 1 or 2 arguments" );
         process.exit(0);
       }
 
@@ -334,13 +335,14 @@ debugger;
       process.exit(0);
     }
 
+
     // give the file a different name for displaying, without changing its actual filename
-    else if ( (ind=check_flag('-rn')) )
+    else if ( (ind=check_flag('-dn')) )
     {
       arg1 = Number( v[ ind + 1 ] );
       arg2 = v[ ind + 2 ];
-      if ( isNaN(arg1) || !arg1 || !arg2 || arg1<1 || arg1>menu.highestUnwatchedPid() ) {
-        println( 'usage: '+exename+' -rn <id> <name_file_to_this>' );
+      if ( isNaN(arg1) || !arg1 || arg1<1 || arg1>menu.highestUnwatchedPid() ) {
+        println( 'usage: '+exename+' -rn <id> <set display_name to this>' );
         process.exit(0);
       }
 
@@ -348,6 +350,11 @@ debugger;
       var res = db.find( {pid:arg1, $or:[{watched:false},{watched:{$exists:false}}]} );
       var m = res._data[0];
       var before = m.display_name ? m.display_name : m.file; 
+
+      if ( !arg2 ) {
+        println( 'display_name is: "' + m.display_name + '"' );
+        process.exit(0);
+      }
       
       // change
       db.update( {pid:arg1, $or:[{watched:false},{watched:{$exists:false}}]} , {'$set':{display_name:arg2}} );
@@ -361,8 +368,46 @@ debugger;
       process.exit(0);
     }
 
-    // show watched seconds, sorting by longest watched
-    else if ( check_flag('-w') )
+    // (re)set the actual filename, not the display_name
+    else if ( (ind=check_flag('-rn')) )
+    {
+      arg1 = Number( v[ ind + 1 ] );
+      arg2 = v[ ind + 2 ];
+      if ( isNaN(arg1) || !arg1 || arg1<1 || arg1>menu.highestUnwatchedPid() ) {
+        println( 'usage: '+exename+' -rn <id> <name_file_to_this>' );
+        process.exit(0);
+      }
+
+      // get current displaying name 
+      var res = db.find( {pid:arg1, $or:[{watched:false},{watched:{$exists:false}}]} );
+      var m = res._data[0];
+      var before = m.file; 
+
+      if ( !arg2 ) {
+        println( 'the file name is: "' + m.file + '"' );
+        process.exit(0);
+      }
+      
+      // change
+      res = db.update( {pid:arg1, $or:[{watched:false},{watched:{$exists:false}}]} , {'$set':{file:arg2}} );
+
+      if ( res !== 1 ) {
+        println( " **Error trying to change filename for PID: " + arg1 );
+        process.exit(0);
+      }
+
+      db.save();
+
+      // report
+      //res = db.find( {pid:arg1,file:arg2} );
+      //m = res._data[0];
+      println( 'changed: "'+before+'" to: "'+arg2+'"' );
+
+      process.exit(0);
+    }
+
+    // show watched seconds, sorting by longest watched (time)
+    else if ( check_flag('-wt') )
     {
       var res = db.find( {sec_watched:{$exists:true}}).sort( { sec_watched: -1 } );
       var tot = 0;

@@ -453,7 +453,7 @@ FIXME: broke
     function print_partial_matches( line )
     {
       var reg = new RegExp( line, 'ig' );
-      var r = db.find( {$or:[{file:reg},{display_name:reg}]} );
+      var r = db.find( {$or:[{file:reg},{display_name:reg},{dir:reg}]} );
       println( "\n --> " + r.length + " matches found for: \""+line+"\"\n" );
 
       for ( var i = 0, l = r.length; i<l; i++ ) {
@@ -461,8 +461,8 @@ FIXME: broke
         var tab = o.watched ? '  w  ' : '     ';
         if ( menu.lastMov == o.pid )
           tab = '  L  ';
-        //var name = o.display_name ? o.display_name : o.file;
-        var name = o.display_name ? o.display_name + '   {{'+o.file+'}}' : o.file;
+        var name = o.display_name ? o.display_name : o.file;
+        //var name = o.display_name ? o.display_name + '   {{'+o.file+'}}' : o.file;
         var xtra = o.resumeSec ? ' (@'+o.resumeSec+')' : '';
         println( ' ['+o.pid+']' + tab + name + xtra );
       }

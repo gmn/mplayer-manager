@@ -14,9 +14,9 @@ Author: Greg Naughton greg@naughton.org
 
 # Installation Instructions
 * ```npm install -g mplayermanager```
-* ``sudo ln -s /usr/local/lib/node_modules/mplayermanager/watch.js /usr/bin/watch```
+* ```sudo ln -s /usr/local/lib/node_modules/mplayermanager/watch.js /usr/bin/watch```
  * (or whichever path npm installed it to in your system)
-* ```watch -pc```   ( to show the default config options
+* ```watch -pc```   (to show the default config options)
 * edit your config.json  (path to config.json is given in ```watch -pc```)
 
 # Usage Instructions
@@ -31,4 +31,4 @@ Author: Greg Naughton greg@naughton.org
 * use ```watch --help``` to see a whole list of options
 
 # Bugs
-* right now, some things can be done in interactive mode and not in commandline mode and vice-versa. 
+* right now, some things can be done in interactive mode and not from commandline switches and vice-versa. 
