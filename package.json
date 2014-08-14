@@ -1,6 +1,6 @@
 {
   "name": "mplayermanager",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "A commandline interface for mplayer written in node",
   "main": "watch.js",
   "author": {
