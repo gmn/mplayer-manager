@@ -49,7 +49,8 @@
       p( '-l                play last played' );
       p( '-sd <id>          set directory file is in' );
       p( '-nc               force-start a new config' );
-      p( '-wt               show files\' play times, sorted by time' );
+      p( '-tw               show time watched per file' );
+      p( '-td               show time watched per day' );
       p( '-rn <id> <name>   sets file\'s real name to <name>' );
       p( '-dn <id> <name>   sets file\'s display_name (leaves filename alone)' );
       p( '-pc               print current config' );
@@ -407,7 +408,7 @@ debugger;
     }
 
     // show watched seconds, sorting by longest watched (time)
-    else if ( check_flag('-wt') )
+    else if ( check_flag('-tw') )
     {
       var res = db.find( {sec_watched:{$exists:true}}).sort( { sec_watched: -1 } );
       var tot = 0;
@@ -423,6 +424,17 @@ debugger;
       println("----------------------------------");
       println('  ' + lib.secToHMS(tot) + ' total time watched' );
       println("----------------------------------");
+      process.exit(0);
+    }
+
+    // show the amount of time spent watching stuff for each day
+    else if ( check_flag('-td') )
+    {
+      var res = db.find( {secsToday:{$exists:true}}).sort( { daynum: -1 } );
+      for ( var i = 0, l = res._data.length; i < l; i++ ) {
+        var o = res._data[i];
+        println( lib.daynumToDate(o.daynum) + "\t" + lib.secToHMS(o.secsToday) );
+      }
       process.exit(0);
     }
 

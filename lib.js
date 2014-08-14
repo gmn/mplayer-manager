@@ -271,13 +271,44 @@
     }
     exports.unixToAlpha = unixToAlpha;
 
-    function daynum() {
-      var d = new Date();
-      var Y = d.getFullYear();
-      var M = d.getMonth();
-      return Y * 365 + [0,31,28,31,30,31,30,31,31,30,31,30,31].slice(0,M).reduce(function(x,y){return x+y}) + d.getDate();
+    var MONSAR = [31,28,31,30,31,30,31,31,30,31,30,31];
+
+    // Takes Month index: 0-11 and returns the # of days in the months
+    //  preceding, but not including, it. Eg. Jan = 0, Feb = 31, Mar = 59
+    function daysBefore( mm ) {
+      return !mm || mm == 0 ? 0 : MONSAR.slice(0,mm).reduce(function(x,y){return x+y});
     }
-  
+
+    function daynum( dateobj ) {
+      var d = !dateobj ? new Date() : dateobj;
+      var Y = d.getFullYear();
+      var M = d.getMonth(); // starting with 0: m == {0,11}
+      var D = d.getDate(); // starting with 1
+      return Y * 365 + daysBefore(M) + D - 1;
+    }
+    exports.daynum = daynum;
+
+    function daynumToDate( dn ) {
+      var yy = Math.floor(dn/365);
+      var dd = dn - 365 * yy;
+      var mm = 0; // jan
+
+      while ( mm < 12 )
+      {
+        if ( dd < MONSAR[mm] ) 
+          break;
+        else
+        {
+          dd -= MONSAR[mm++];
+        }
+      }
+
+      return yy+'-'+lz(mm+1)+'-'+lz(dd+1);
+    }
+    exports.daynumToDate = daynumToDate;
+
+    //[735109,735110,735141].forEach(function(x){println(daynumToDate(x));});
+
 })();
 
 

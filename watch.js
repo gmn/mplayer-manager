@@ -43,9 +43,9 @@
       process.env.HOME,
       process.env.HOME+'/Desktop'],
     autoconfig_done: 0,
-    preplay_timeout: 1200,
+    preplay_timeout: 1050,
     vidplayer_silence: 1,
-    last_played_num: 5
+    last_played_num: 10
   };
 
   function MovieRow(o) {
@@ -79,14 +79,14 @@
         { ent: '[x] delete movie', f: del_f },
         { ent: '[o] set video player options', f: opt_f },
         { ent: '[s] start movie from beginning', f: null_f },
-        { ent: '[l] resume last played', f: last_f },
-        { ent: '[t] toggle vidplayer output', f: out_f },
-        { ent: '[m] mark as watched', f: null_f },
-        { ent: '[u] mark as un-watched', f: null_f },
-        { ent: '[w] list watched', f: null_f },
         { ent: '[f] find files matching fragment', f: null_f },
+        { ent: '[t] toggle vidplayer output', f: out_f },
         { ent: '[lp] show last played', f: null_f },
+        { ent: '[u] mark as un-watched', f: null_f },
+        { ent: '[m] mark as watched', f: null_f },
         { ent: '[d] toggle DVD mode', f: dvd_f },
+        { ent: '[l] resume last played', f: last_f },
+        { ent: '[w] list watched', f: null_f },
         { ent: '[q] quit', f: null_f }
     ];
 
@@ -271,7 +271,16 @@ debugger;
       rl.prompt();
 
       menu.movies[index].resumeSec = menu.lastSec; // set this key for this movie
+
+      // update movie stats
       db.update( {_id:menu.movies[index]._id}, {'$set':{'resumeSec':menu.lastSec,'sec_watched':total_sec}} );
+    
+      // keep tally of time watched per day
+      var res = db.find( {secsToday:/.*/,daynum:lib.daynum()} );
+      var total_today = res.length == 0 ? 0 : res._data[0].secsToday;
+      total_today += total_sec_this_run;
+      db.update( {secsToday:/.*/,daynum:lib.daynum()},{$set:{secsToday:total_today,daynum:lib.daynum()}}, {upsert:true} );
+
       db.save();
       reload_movies_list(); // synchronizes menu from db
 
