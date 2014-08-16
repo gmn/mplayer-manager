@@ -1,7 +1,7 @@
 {
   "name": "mplayermanager",
-  "version": "0.0.6",
-  "description": "A commandline interface for mplayer written in node",
+  "version": "0.0.7",
+  "description": "commandline interface for mplayer that manages movie files",
   "main": "watch.js",
   "author": {
     "name": "Greg Naughton",

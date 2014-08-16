@@ -1,20 +1,23 @@
 mplayermanager todo list
 ========================
 
-- _id will be completely untouched; deletion causes gaps == OK, new items
+X _id will be completely untouched; deletion causes gaps == OK, new items
   get next higher _id
-- hours / day:= cmdline switch prints; db {secsPerDay: 466, date: 2014-... }, {secsToday: 45, date: 2014...}.  
-  - better yet: don't save it at all. Just run through all sec_watched sorted by last_played, and tally for each date. Note, however, this is innacurate in that you could watch the same file over a series of different days and time-periods. (their cumulative amount would just get lumped into the last day listed)
+X hours / day:= cmdline switch prints; db {secsPerDay: 466, date: 2014-... }, {secsToday: 45, date: 2014...}.  
+  N better yet: don't save it at all. Just run through all sec_watched sorted by last_played, and tally for each date. Note, however, this is innacurate in that you could watch the same file over a series of different days and time-periods. (their cumulative amount would just get lumped into the last day listed)
+  X OK, this is the algorithm: Each time you stop the player, it adds on to an entry for that day in db.update( {secsToday:/.*/,date:lib.daynum()},{secsToday:new_secs,date:lib.daynum()}, {$upsert:true} );
+X watch Stein --> "6 files matching "Stein""
+X watch <exact match> // if there's an exact match it plays the file
 
-  - OK, this is the algorithm: Each time you stop the player, it adds on to an entry for that day in db.update( {secsToday:/.*/,date:lib.daynum()},{secsToday:new_secs,date:lib.daynum()}, {$upsert:true} );
-
-
-- watch Stein --> "6 files matching "Stein""
+- "It keeps track of every file and where you left off in each file, so you can
+jump around, but you're always moving forwards"
 
 - watch -l 2, watch -l 3
 - watch> l 2  ...
 
-- better abstraction between core functions and interface
+- better abstraction between core functions and interface; core functionality goes in 
+  completely in its own encapsulated class. UI methods merely call the Core class.
+  What about print() methods?  Unsure.  I could hand arrays back...
 - better functionality design (can't do some things in interactive mode that
     you can from cmdline switches and vice-versa)
 

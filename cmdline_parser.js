@@ -40,20 +40,21 @@
       var p = function(s) { println( ' ' + s ) };
       p( '-c <config_path>  read the config from this location' );
       p( '-k <key> <val>    manually set key:value pairs in the config.' );
+      p( '<#>               play movie with index <#>' );
       p( '--help, -h        print this menu' );
       p( '-ci <id> <id2>    change index' );
+      p( '-l                play last played' );
       p( '-d                dump list of files' );
       p( '-dw               dump list of watched file' );
-      p( '<#>               play movie with index <#>' );
       p( '-a <file> [dir]   add file, dir is optional' );
-      p( '-l                play last played' );
-      p( '-sd <id>          set directory file is in' );
-      p( '-nc               force-start a new config' );
-      p( '-tw               show time watched per file' );
+      p( '-s <id> [dir]     set directory file is in' );
+      p( '-t                show time watched per file' );
       p( '-td               show time watched per day' );
       p( '-rn <id> <name>   sets file\'s real name to <name>' );
       p( '-dn <id> <name>   sets file\'s display_name (leaves filename alone)' );
+      p( '-nc               force-start a new config' );
       p( '-pc               print current config' );
+      p( '-pm               print out movies db' );
       p( '-lp               print last played' );
       process.exit(0);
     }
@@ -93,6 +94,8 @@ debugger;
     var v = process.argv;
     var ind = 0;
     var arg1, arg2;
+    var print_menu_after = true;
+    var dont_print_menu = false;
 debugger;
 
     // override config 
@@ -180,8 +183,7 @@ debugger;
       db.master[start_row].pid = pid2;
 
       // sort by _id asc, and take gaps out of _id
-      db.master = db.master.sort(function(a,b){return a._id - b._id});
-      db.renormalize();
+      //db.master = db.master.sort(function(a,b){return a._id - b._id});
 
       // take gaps out of Unwatched pid in db
       menu.renormalizeUnwatchedPid();
@@ -310,15 +312,15 @@ debugger;
       }
     }
 
-    // -sd ==> set directory
-    else if ( (ind=check_flag('-sd')) ) 
+    // -s ==> set directory
+    else if ( (ind=check_flag('-s')) ) 
     {
       var pid       = Number( v[ ind + 1 ] );
       var new_name  = v[ ind + 2 ];
 
       if ( !pid || isNaN(pid) || pid < 1 || pid > menu.highestUnwatchedPid() ) {
         println ( "first value out of range, or not a number." );
-        println( "-sd: expects 1 or 2 arguments" );
+        println( "-s: expects 1 or 2 arguments" );
         process.exit(0);
       }
 
@@ -408,7 +410,7 @@ debugger;
     }
 
     // show watched seconds, sorting by longest watched (time)
-    else if ( check_flag('-tw') )
+    else if ( check_flag('-t') )
     {
       var res = db.find( {sec_watched:{$exists:true}}).sort( { sec_watched: -1 } );
       var tot = 0;
@@ -441,7 +443,7 @@ debugger;
     // this shows all last played last played
     else if ( check_flag( '-lp' ) )
     {
-      var res = db.find( {last_played:{$exists:true}} ).sort({last_played:-1});
+      var res = db.find( {last_played:{$exists:true}} ).sort({last_played:1});
       if ( res && res._data && res.length > 0 ) {
         res._data.forEach(function(x,i){
           var tab = x.watched ? '  w  ' : '     ';
@@ -462,24 +464,47 @@ debugger;
       process.exit(0);
     }
 
+    else if ( check_flag('-pm') ) {
+      var file = lib.read_file( config.movies_db_path );
+      var obj = JSON.parse(file);
+      println( JSON.stringify(obj,null,'  ') );
+      process.exit(0);
+    }
+
     // try to play movie by number if valid movie[index] given
     else 
     {
       if ( !v[2] )
-        return true;
+        return print_menu_after;
 
       var pid = Number( v[2] );
-      if ( !isNaN(pid) && pid >= 1 && pid <= menu.highestUnwatchedPid() ) {
+      if ( isNaN(pid) ) {
+        var matches = menu.print_partial_matches( v[2] ); 
+        if ( 1 === matches ) {
+          for ( var i = 0, l=menu.movies.length; i<l; i++ ) {
+            if ( menu.movies[i].file === v[2] || (menu.movies[i].display_name && menu.movies[i].display_name === v[2]) ) {
+              menu.play_movie( menu.movies[i].pid, menu.movies[i].resumeSec ? menu.movies[i].resumeSec : 0 );
+              return dont_print_menu;
+            }
+          }
+        }
+        else
+          process.exit(0);
+        //return print_menu_after;
+      } 
+
+      else if ( pid >= 1 && pid <= menu.highestUnwatchedPid() ) {
         var k = menu.indexFromPid( pid );
         menu.play_movie( pid, menu.movies[k].resumeSec ? menu.movies[k].resumeSec : 0 );
-        return false;
+        return dont_print_menu;
       }
+
       else
       {
         // if flags already checked for, run normally
         for ( var i = 0; i < early_flags.length; i++ ) {
           if ( v[2].match( early_flags[i] ) )
-            return true;
+            return print_menu_after;
         }
 
         println( "dont know that one" );
@@ -487,7 +512,7 @@ debugger;
       }
     }
 
-    return true;
+    return print_menu_after;
 
   } // execute_commands
   exports.execute_commands = execute_commands;

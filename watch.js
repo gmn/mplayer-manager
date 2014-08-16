@@ -48,6 +48,30 @@
     last_played_num: 10
   };
 
+
+    function print_partial_matches( line )
+    {
+      var reg = new RegExp( line, 'ig' );
+      var r = db.find( {$or:[{file:reg},{display_name:reg},{dir:reg}]} ).sort({file:1});
+      println( "\n --> " + r.length + " matches found for: \""+line+"\"\n" );
+
+      for ( var i = 0, l = r.length; i<l; i++ ) {
+        var o = r._data[i];
+        var tab = o.watched ? '  w  ' : '     ';
+        if ( menu.lastMov == o.pid )
+          tab = '  L  ';
+        var name = o.display_name ? o.display_name : o.file;
+        //var name = o.display_name ? o.display_name + '   {{'+o.file+'}}' : o.file;
+        var xtra = o.resumeSec ? ' (@'+o.resumeSec+')' : '';
+        println( ' ['+o.pid+']' + tab + name + xtra );
+      }
+      return r.length;
+    }
+
+
+  /*
+   * MovieRow class
+   */
   function MovieRow(o) {
     for ( var i in o ) {
       if ( o.hasOwnProperty(i) ) {
@@ -74,8 +98,8 @@
     var del_f = function() { return that.lastDeleted === '' ? '' : ' (last: "'+trunc_string(that.lastDeleted,40)+'")' };
 
     this.entries = [
-        { ent: '[p] print movie list', f: null_f },
         { ent: '[#] type number to play/resume movie', f: null_f },
+        { ent: '[p] print movies', f: null_f },
         { ent: '[x] delete movie', f: del_f },
         { ent: '[o] set video player options', f: opt_f },
         { ent: '[s] start movie from beginning', f: null_f },
@@ -156,6 +180,7 @@
 
   var menu = new MovieMenu();
   menu.play_movie = play_movie;
+  menu.print_partial_matches = print_partial_matches;
 
 
   //
@@ -228,7 +253,7 @@ debugger;
     } while ( !last_line && lines && lines.length > 0 );
 
     var terms = last_line.split( /[:\s]+/ );
-    if ( !terms || !(terms.length > 0) || terms[0] !== 'A' )
+    if ( !terms || !(terms.length > 0) || terms[0] !== 'A' || terms[1] == '???' )
       return null;
 
     return terms[1];
@@ -277,7 +302,8 @@ debugger;
     
       // keep tally of time watched per day
       var res = db.find( {secsToday:/.*/,daynum:lib.daynum()} );
-      var total_today = res.length == 0 ? 0 : res._data[0].secsToday;
+    
+      var total_today = res.length === 0 ? 0 : res._data[0].secsToday;
       total_today += total_sec_this_run;
       db.update( {secsToday:/.*/,daynum:lib.daynum()},{$set:{secsToday:total_today,daynum:lib.daynum()}}, {upsert:true} );
 
@@ -459,24 +485,6 @@ FIXME: broke
     if ( menu && menu.movies && menu.movies.length === 0 )
       reload_movies_list();
 
-    function print_partial_matches( line )
-    {
-      var reg = new RegExp( line, 'ig' );
-      var r = db.find( {$or:[{file:reg},{display_name:reg},{dir:reg}]} );
-      println( "\n --> " + r.length + " matches found for: \""+line+"\"\n" );
-
-      for ( var i = 0, l = r.length; i<l; i++ ) {
-        var o = r._data[i];
-        var tab = o.watched ? '  w  ' : '     ';
-        if ( menu.lastMov == o.pid )
-          tab = '  L  ';
-        var name = o.display_name ? o.display_name : o.file;
-        //var name = o.display_name ? o.display_name + '   {{'+o.file+'}}' : o.file;
-        var xtra = o.resumeSec ? ' (@'+o.resumeSec+')' : '';
-        println( ' ['+o.pid+']' + tab + name + xtra );
-      }
-    }
-
 
     playing = 0;
 
@@ -499,7 +507,7 @@ FIXME: broke
 
       if ( line.trim().length === 0 || isNaN( pid ) ) {
         println( "That's not a movie index, silly." );
-      } else if ( pid < 0 || pid >= menu.highestUnwatchedPid() ) {
+      } else if ( pid < 1 || pid > menu.highestUnwatchedPid() ) {
         println( "Not in range" );
       } 
       else {
@@ -572,7 +580,6 @@ FIXME: broke
         db.remove( {_id:menu.movies[delete_index]._id} );
         db.remove({lastMoviePid:{$exists:true}});
         menu.renormalizeUnwatchedPid();
-        db.renormalize();
         db.save();
         println( "\nMovie: \""+menu.movies[delete_index].name()+'" deleted permanently from '+config.movies_db_name );
         menu.setLastDeleted( menu.movies[delete_index].name() );
@@ -647,9 +654,13 @@ FIXME: broke
           break;
       case 'lp':
           var res = db.find( {last_played:{$exists:true},$or:[{watched:{$exists:false}},{watched:false}]} ).sort({last_played:-1}).limit(config.last_played_num);
-          if ( res && res._data && res.length > 0 )
-            res._data.forEach(function(x,i){println((i+1)+"\t["+x.pid+"]\t"+(x.display_name?x.display_name:x.file));});
-          else
+          if ( res && res._data && res.length > 0 ) {
+            var d = res._data;
+            for ( var i = d.length - 1; i >= 0; i-- ) {
+              println( (i+1)+"\t["+d[i].pid+"]\t"+(d[i].display_name?d[i].display_name:d[i].file) );
+            }
+            //res._data.forEach(function(x,i){println((i+1)+"\t["+x.pid+"]\t"+(x.display_name?x.display_name:x.file));});
+          } else
             println( "none played" );
           break;
       case 27: /* doesn't work */
@@ -662,7 +673,6 @@ FIXME: broke
           if ( line.length === 0 ) {
               // do nothing
           } else if ( typeof pid !== "number" || isNaN(pid) ) {
-              //println( 'No file exactly mat "' + line.trim() + '"' );
               print_partial_matches( line );
           } else if ( pid >= 1 && pid <= menu.highestUnwatchedPid() ) {
               if ( menu.startOverPid !== -1 ) {
@@ -691,7 +701,6 @@ FIXME: broke
 
   function reload_movies_list()
   {
-    //var movies_res = db.find( {file:{$exists:true},$or:[{watched:false},{watched:{$exists:false}}]} ).sort({_id:1}).sort({added:1});
     var movies_res = db.find( {file:{$exists:true},$or:[{watched:false},{watched:{$exists:false}}]} ).sort({pid:1});
 
     // got movies finally
@@ -719,6 +728,7 @@ FIXME: broke
     if ( res.length > 0 ) {
       menu.lastDeleted = res._data[0].lastDeleted;
     }
+
   } // reload_movies_list
 
 })();
