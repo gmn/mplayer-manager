@@ -12,6 +12,7 @@
   var trunc_string  = lib.trunc_string;
   var println       = lib.println;
   var print         = lib.print;
+  var secToHMS      = lib.secToHMS;
 
   var queryable = require( 'queryable' );
   var db = null;
@@ -61,7 +62,7 @@
       if ( menu.lastMov == o.pid )
         tab = '  L  ';
       var name = o.display_name ? o.display_name : o.file;
-      var xtra = o.resumeSec !== undefined ? ' (@'+o.resumeSec+')' : '';
+      var xtra = o.resumeSec !== undefined ? ' (@'+secToHMS(o.resumeSec)+')' : '';
       println( ' ['+o.pid+']' + tab + name + xtra );
     }
     return r.length;
@@ -92,7 +93,7 @@
     var null_f = function() { return ''; };
     var dvd_f = function() { return that.dvd ? ' (-dvd is set)' : ''; };
     var opt_f = function() { return that.options ? ' (-opts "'+that.options+'")' : '' };
-    var last_f = function() { return that.lastMov !== -1 ? ' (last: ['+that.lastMov+']'+trunc_string(that.movies[that.indexFromPid(that.lastMov)].file,30)+' @sec: '+that.lastSec+')' : '' };
+    var last_f = function() { return that.lastMov !== -1 ? ' (last: ['+that.lastMov+']'+trunc_string(that.movies[that.indexFromPid(that.lastMov)].file,35)+' @'+secToHMS(that.lastSec)+')' : '' };
     var out_f = function() { return config.vidplayer_silence ? ' (off)' : ' (on)' };
     var del_f = function() { return that.lastDeleted === '' ? '' : ' (last: "'+trunc_string(that.lastDeleted,40)+'")' };
     var scale_f = function() { return that.scale ? ' (scale: ' + that.scale + 'x)' : ' (1.0)'; };
@@ -345,7 +346,7 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
     var i, index, len;
 
     for ( i = 0, index = continue_index, len = menu.movies.length; index < len && i < disp_rows; index++, i++ ) {
-      var x = menu.movies[index].resumeSec ? "  (@"+menu.movies[index].resumeSec+")" : '';
+      var x = menu.movies[index].resumeSec ? "  (@"+secToHMS(menu.movies[index].resumeSec)+")" : '';
       var m = x ? ' t ' : '   ';
       println( menu.movies[index].pid + m + menu.movies[index].name() + x );
     }
@@ -695,7 +696,7 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
           if ( res && res._data && res.length > 0 ) {
             var d = res._data;
             for ( var i = d.length - 1; i >= 0; i-- ) {
-              println( (i+1)+"\t["+d[i].pid+"]\t"+trunc_string(d[i].display_name?d[i].display_name:d[i].file,50) + (d[i].resumeSec!==undefined?'  (@'+d[i].resumeSec+')':'') );
+              println( (i+1)+"\t["+d[i].pid+"]\t"+trunc_string(d[i].display_name?d[i].display_name:d[i].file,50) + (d[i].resumeSec!==undefined?'  (@'+secToHMS(d[i].resumeSec)+')':'') );
             }
           } else
             println( "none played" );
