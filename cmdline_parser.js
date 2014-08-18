@@ -1,6 +1,6 @@
 // cmdline_parser.js
-// small utility to help setup a config file.  It 
-//  - parses options from the commandline
+// Utility to help setup a config file.
+// It parses options from the commandline
 
 
 (function()
@@ -26,6 +26,12 @@
     }
 
     return false;
+  }
+
+  // returns 'true' there is a lock, or 'false', not one
+  function check_lock() {
+    var list = lib.list_dir( '/var/lock/' );
+    return ( list && list.length > 0 && list.some(function(n){return n.match(/mp_mngr_/)}) );
   }
 
 
@@ -97,6 +103,13 @@ debugger;
     var print_menu_after = true;
     var dont_print_menu = false;
 debugger;
+
+
+    if ( check_lock() ) {
+      println( "MplayerManager is running. Try exiting first" );
+      return process.exit();
+    }
+
 
     // override config 
     if ( check_flag('-k') ) {
@@ -405,7 +418,7 @@ debugger;
     // show watched seconds, sorting by longest watched (time)
     else if ( check_flag('-t') )
     {
-      var res = db.find( {sec_watched:{$exists:true}}).sort( { sec_watched: -1 } );
+      var res = db.find( {sec_watched:{$exists:true}}).sort( {sec_watched:1} );
       var tot = 0;
       for ( var i = 0, l = res._data.length; i < l; i++ ) {
         var o = res._data[i];
@@ -425,10 +438,12 @@ debugger;
     // show the amount of time spent watching stuff for each day
     else if ( check_flag('-td') )
     {
+      var do_secs = check_flag('-sec');
       var res = db.find( {secsToday:{$exists:true}}).sort( { daynum: -1 } );
       for ( var i = 0, l = res._data.length; i < l; i++ ) {
         var o = res._data[i];
-        println( lib.daynumToDate(o.daynum) + "\t" + lib.secToHMS(o.secsToday) );
+        var time = !do_secs ? lib.secToHMS(o.secsToday) : o.secsToday;
+        println( lib.daynumToDate(o.daynum) + "\t" + time );
       }
       process.exit(0);
     }

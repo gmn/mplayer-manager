@@ -9,6 +9,12 @@ X hours / day:= cmdline switch prints; db {secsPerDay: 466, date: 2014-... }, {s
 X watch Stein --> "6 files matching "Stein""
 X watch <exact match> // if there's an exact match it plays the file
 
+--fs, --speed=<0.01-100>, -aid <N>, -sid <N>, -softvol-max 1000 -volume 50, -xy <0.01-100>
+
+- organize cmdline switches into those that must be blocked and those that do not need to (eg. readonly)
+
+- 'watch -a <filename> [file2] [...] -opts "-v -aid 1 --fs -xy 1.33" -dir <dirname>'
+
 - "It keeps track of every file and where you left off in each file, so you can
 jump around, but you're always moving forwards"
 

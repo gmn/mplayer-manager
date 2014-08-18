@@ -7,12 +7,24 @@
 {
   var fs = require('fs');
   var lib = require( './lib.js' );
-  // aliases
+
+  // lib aliases
   var type_of       = lib.type_of;
   var trunc_string  = lib.trunc_string;
   var println       = lib.println;
   var print         = lib.print;
   var secToHMS      = lib.secToHMS;
+
+  // lock file
+  var lock_dir = '/var/lock';
+  var lockfile = '/var/lock/mp_mngr_'+(Math.random()+'').slice(-4)+'_lockfile';
+
+  function mp_exit(_code) {
+    var code = _code || 0;
+    var list = lib.list_dir( lock_dir );
+    list && list.length > 0 && list.some( function(dir) { if ( dir.match(/mp_mngr_/) ) { fs.unlinkSync( dir ) } } );
+    process.exit( code );
+  }
 
   var queryable = require( 'queryable' );
   var db = null;
@@ -93,17 +105,17 @@
     var null_f = function() { return ''; };
     var dvd_f = function() { return that.dvd ? ' (-dvd is set)' : ''; };
     var opt_f = function() { return that.options ? ' (-opts "'+that.options+'")' : '' };
-    var last_f = function() { return that.lastMov !== -1 ? ' (last: ['+that.lastMov+']'+trunc_string(that.movies[that.indexFromPid(that.lastMov)].file,35)+' @'+secToHMS(that.lastSec)+')' : '' };
+    var last_f = function() { return that.lastMov !== -1 ? ' (['+that.lastMov+']'+trunc_string(that.movies[that.indexFromPid(that.lastMov)].file,36)+' @'+secToHMS(that.lastSec)+')' : '' };
     var out_f = function() { return config.vidplayer_silence ? ' (off)' : ' (on)' };
     var del_f = function() { return that.lastDeleted === '' ? '' : ' (last: "'+trunc_string(that.lastDeleted,40)+'")' };
     var scale_f = function() { return that.scale ? ' (scale: ' + that.scale + 'x)' : ' (1.0)'; };
-    var full_f = function() { return that.fullscreen ? ' (fullscreen is ON)' : ''; };
+    var full_f = function() { return that.fullscreen ? ' (fullscreen is ON)' : ' (off)'; };
 
     this.entries = [
         { ent: '[#] type number to play/resume movie', f: null_f },
         { ent: '[p] print movies', f: null_f },
         { ent: '[x] delete movie', f: del_f },
-        { ent: '[o] set video player options', f: opt_f },
+        { ent: '[o] enter permanent per-movie options', f: opt_f },
         { ent: '[s] start movie from beginning', f: null_f },
         { ent: '[f] toggle fullscreen', f: full_f },
         { ent: '[t] toggle vidplayer output', f: out_f },
@@ -186,6 +198,8 @@
   var menu = new MovieMenu();
   menu.play_movie = play_movie;
   menu.print_partial_matches = print_partial_matches;
+  menu.mp_exit = mp_exit;
+  menu.lock_dir = lock_dir;
 
 
   //
@@ -218,7 +232,7 @@ debugger;
 
     rl.on('line', readline_line_function ).on('close', function() {
       println('Ctrl+D caught. Exiting.');
-      process.exit(0);
+      mp_exit(0);
     });
     rl.resume();
 
@@ -229,6 +243,9 @@ debugger;
       menu.print();
       rl.prompt();
     }
+
+    // got past cmdline, start lockfile during application execution
+    lib.write_file( lockfile, 'lock me' );
   }
 
 
@@ -295,8 +312,8 @@ debugger;
       var total_sec = (menu.movies[index].sec_watched ? menu.movies[index].sec_watched : 0) + total_sec_this_run;
 
       println('Child process exited with code: ' + code);
-      println('Last movie second watched: ' + menu.lastSec );
-      println('Watched: '+lib.secToHMS(total_sec_this_run) +' this run for a total: '+lib.secToHMS(total_sec) );
+      println('Last time watched: ' + secToHMS(menu.lastSec) );
+      println('Watched '+secToHMS(total_sec_this_run) +' this run for '+secToHMS(total_sec) + ' total viewed time' );
       menu.print();
       rl.prompt();
 
@@ -645,7 +662,7 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
           break;
       case 'q':
           println( "goodbye" );
-          process.exit(0);
+          mp_exit(0);
           break;
       case 'd':
           println( 'dvd set to '+ (menu.toggleDvd() ? 'on' : 'off') ); 
