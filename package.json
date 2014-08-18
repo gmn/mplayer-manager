@@ -1,6 +1,6 @@
 {
   "name": "mplayermanager",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "description": "commandline interface for mplayer that manages movie files",
   "main": "watch.js",
   "author": {
@@ -15,14 +15,15 @@
   "files": [
     "watch.js",
     "cmdline_parser.js",
-    "config_helper.js"
+    "config_helper.js",
+    "lib.js"
   ],
   "private": false,
   "scripts": {
     "start": "node ./watch.js"
   },
   "dependencies": {
-    "queryable": "~0.2.8"
+    "queryable": "~0.2.9"
   },
   "engines": {
     "node": "0.10.x"
