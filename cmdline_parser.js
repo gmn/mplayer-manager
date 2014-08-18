@@ -146,9 +146,6 @@ debugger;
       var index1 = menu.indexFromPid(pid1);
       var index2 = menu.indexFromPid(pid2);
 
-      // get _id for index1, _id for index2
-      //var id1 = menu.movies[index1]._id;
-      //var id2 = menu.movies[index2]._id;
 
       println( 'inserting ['+pid1+'] "' + menu.movies[index1].name() + '" before ['+pid2+'] "' + menu.movies[index2].name() + '"' );
 
@@ -164,7 +161,6 @@ debugger;
       }
 
       var start_row = row_by_pid( pid1 );
-      //var end_row = row_by_pid( pid2 );
 
       /*
       - go down all rows of master; look for not watched
@@ -181,9 +177,6 @@ debugger;
 
       // set index index1's pid to pid2, (now that pid2 is out of the way)
       db.master[start_row].pid = pid2;
-
-      // sort by _id asc, and take gaps out of _id
-      //db.master = db.master.sort(function(a,b){return a._id - b._id});
 
       // take gaps out of Unwatched pid in db
       menu.renormalizeUnwatchedPid();
@@ -421,10 +414,10 @@ debugger;
         var tab = o.watched ? '  w  ' : '     ';
         if ( menu.lastMov == o.pid ) 
           tab = '  L  ';
-        println( i + tab + lib.secToHMS(o.sec_watched) + "\t["+ o.pid + '] ' + name );
+        println( i + tab + lib.secToHMS(o.sec_watched,true) + "\t["+ o.pid + '] ' + name );
       }
       println("----------------------------------");
-      println('  ' + lib.secToHMS(tot) + ' total time watched' );
+      println('  ' + lib.secToHMS(tot,true) + ' total time watched' );
       println("----------------------------------");
       process.exit(0);
     }
@@ -487,10 +480,10 @@ debugger;
               return dont_print_menu;
             }
           }
+          process.exit(0);
         }
         else
           process.exit(0);
-        //return print_menu_after;
       } 
 
       else if ( pid >= 1 && pid <= menu.highestUnwatchedPid() ) {

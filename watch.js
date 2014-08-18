@@ -49,24 +49,23 @@
   };
 
 
-    function print_partial_matches( line )
-    {
-      var reg = new RegExp( line, 'ig' );
-      var r = db.find( {$or:[{file:reg},{display_name:reg},{dir:reg}]} ).sort({file:1});
-      println( "\n --> " + r.length + " matches found for: \""+line+"\"\n" );
+  function print_partial_matches( line )
+  {
+    var reg = new RegExp( line, 'ig' );
+    var r = db.find( {$or:[{file:reg},{display_name:reg},{dir:reg}]} ).sort({file:1});
+    println( "\n --> " + r.length + " matches found for: \""+line+"\"\n" );
 
-      for ( var i = 0, l = r.length; i<l; i++ ) {
-        var o = r._data[i];
-        var tab = o.watched ? '  w  ' : '     ';
-        if ( menu.lastMov == o.pid )
-          tab = '  L  ';
-        var name = o.display_name ? o.display_name : o.file;
-        //var name = o.display_name ? o.display_name + '   {{'+o.file+'}}' : o.file;
-        var xtra = o.resumeSec ? ' (@'+o.resumeSec+')' : '';
-        println( ' ['+o.pid+']' + tab + name + xtra );
-      }
-      return r.length;
+    for ( var i = 0, l = r.length; i<l; i++ ) {
+      var o = r._data[i];
+      var tab = o.watched ? '  w  ' : '     ';
+      if ( menu.lastMov == o.pid )
+        tab = '  L  ';
+      var name = o.display_name ? o.display_name : o.file;
+      var xtra = o.resumeSec !== undefined ? ' (@'+o.resumeSec+')' : '';
+      println( ' ['+o.pid+']' + tab + name + xtra );
     }
+    return r.length;
+  }
 
 
   /*
@@ -96,6 +95,8 @@
     var last_f = function() { return that.lastMov !== -1 ? ' (last: ['+that.lastMov+']'+trunc_string(that.movies[that.indexFromPid(that.lastMov)].file,30)+' @sec: '+that.lastSec+')' : '' };
     var out_f = function() { return config.vidplayer_silence ? ' (off)' : ' (on)' };
     var del_f = function() { return that.lastDeleted === '' ? '' : ' (last: "'+trunc_string(that.lastDeleted,40)+'")' };
+    var scale_f = function() { return that.scale ? ' (scale: ' + that.scale + 'x)' : ' (1.0)'; };
+    var full_f = function() { return that.fullscreen ? ' (fullscreen is ON)' : ''; };
 
     this.entries = [
         { ent: '[#] type number to play/resume movie', f: null_f },
@@ -103,23 +104,26 @@
         { ent: '[x] delete movie', f: del_f },
         { ent: '[o] set video player options', f: opt_f },
         { ent: '[s] start movie from beginning', f: null_f },
-        { ent: '[f] find files matching fragment', f: null_f },
+        { ent: '[f] toggle fullscreen', f: full_f },
         { ent: '[t] toggle vidplayer output', f: out_f },
         { ent: '[lp] show last played', f: null_f },
         { ent: '[u] mark as un-watched', f: null_f },
         { ent: '[m] mark as watched', f: null_f },
         { ent: '[d] toggle DVD mode', f: dvd_f },
+        { ent: '[z] set global scaling factor', f: scale_f },
         { ent: '[l] resume last played', f: last_f },
         { ent: '[w] list watched', f: null_f },
         { ent: '[q] quit', f: null_f }
     ];
 
-    this.options = '';
+    this.options = null;
     this.dvd = 0;
     this.lastMov = -1;
     this.lastSec = 0;
     this.startOverPid = -1;
     this.lastDeleted = '';
+    this.scale = null;
+    this.fullscreen = null;
   }
   MovieMenu.prototype = {
     print: function() 
@@ -246,14 +250,14 @@ debugger;
     if ( !lines || !(lines.length > 0) )
       return null;
 
-    // FIXME - this is going from beginning all the way to the last line, shouldn't I just shift off the first line???
     do
     {
-      var last_line = lines.pop();
+      var last_line = lines.shift();
+      // while we dont have a good line and there are still more...
     } while ( !last_line && lines && lines.length > 0 );
 
     var terms = last_line.split( /[:\s]+/ );
-    if ( !terms || !(terms.length > 0) || terms[0] !== 'A' || terms[1] == '???' )
+    if (!terms || !(terms.length > 0) || terms[0] !== 'A' || terms[1] == '???')
       return null;
 
     return terms[1];
@@ -261,7 +265,7 @@ debugger;
 
   function system( index, cmd, args_array )
   {
-    var start_sec = -1;
+    var start_sec = Math.round(Date.now()*0.001);
     var end_sec = -1;
     var p = spawn( cmd, args_array, { env: process.env });
 
@@ -419,6 +423,7 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
     var menu_index = menu.indexFromPid(pid);
 
     var fullpath = find_file( menu.movies[menu_index].file, (menu.movies[menu_index].dir ? menu.movies[menu_index].dir : null) );
+
     if ( !fullpath ) {
       print( "file: \""+menu.movies[menu_index].file+"\" does not exist or can't be found" );
       return;
@@ -439,26 +444,53 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
 
     menu.lastMov = pid;
     db.update({'lastMoviePid':/.*/},{'$set':{'lastMoviePid':menu.movies[menu_index]['pid']}},{'upsert':true});
-    db.save();
 
-/*
-FIXME: broke
+    /* FIXME: DVD playing is currently broken
     if ( menu.dvd || fullpath.match(/video_ts/i) ) {
       args.push( "-dvd" );
-    }
-*/
+    } */
 
-    var options = menu.options.trim();
+
+    // If menu.options has any options, absorb them into the file:
+    if ( menu.options ) {
+    //if ( menu.options.toString().trim().length > 0 ) {
+      //  - save menu.options (if any) to the specific file 
+      db.update( {pid:pid,$or:[{watched:{$exists:false}},{watched:false}]}, {'$set':{opts:menu.options.trim()}} );
+      //  - clear menu.options
+      menu.options = null;
+    }
+
+    // save after updates
+    db.save();
+
+    // If movie has options, use those
+    var options = '';
+    var r = db.find({pid:pid,$or:[{watched:{$exists:false}},{watched:false}]});
+    if ( r._data && r._data[0] && r._data[0].opts ) {
+      options = r._data[0].opts;
+    }
     
+    // add in resume flag
     if ( resume_sec && options ) {
       options += ' -ss ' + resume_sec;
     } else if ( resume_sec ) {
       options = '-ss ' + resume_sec;
     }
 
+    // global scale factor overrides movies's
+    if ( menu.scale ) {
+      options += ' -xy ' + menu.scale;
+    }
+
+    // global fullscreen 
+    if ( menu.fullscreen ) {
+      options += ' --fs';
+    }
+
     if ( options ) {
       args = args.concat( options.split(/[\s]+/) );
     }
+
     args.push( fullpath );
 
     if ( config.vidplayer_silence ) {
@@ -587,11 +619,16 @@ FIXME: broke
       }
     }
 
-    // find 'f'
-    else if ( read_options === 6 )
+    // scale factor
+    else if ( read_options === 7 )
     {
       read_options = 0;
-      print_partial_matches(line);
+      var num = Number( line.trim() );
+      if ( isNaN( num ) ) {
+        println( "Not a good scale factor. Looking for float (0.0-4.0)" );
+      } else {
+        menu.scale = num;
+      }
     }
 
     else 
@@ -649,19 +686,23 @@ FIXME: broke
           read_options = 5;
           break;
       case 'f':
-          print( 'find files that match> ' );
-          read_options = 6;
+          //print( 'find files that match> ' );
+          //read_options = 6;
+          menu.fullscreen = !menu.fullscreen;
           break;
       case 'lp':
           var res = db.find( {last_played:{$exists:true},$or:[{watched:{$exists:false}},{watched:false}]} ).sort({last_played:-1}).limit(config.last_played_num);
           if ( res && res._data && res.length > 0 ) {
             var d = res._data;
             for ( var i = d.length - 1; i >= 0; i-- ) {
-              println( (i+1)+"\t["+d[i].pid+"]\t"+(d[i].display_name?d[i].display_name:d[i].file) );
+              println( (i+1)+"\t["+d[i].pid+"]\t"+trunc_string(d[i].display_name?d[i].display_name:d[i].file,50) + (d[i].resumeSec!==undefined?'  (@'+d[i].resumeSec+')':'') );
             }
-            //res._data.forEach(function(x,i){println((i+1)+"\t["+x.pid+"]\t"+(x.display_name?x.display_name:x.file));});
           } else
             println( "none played" );
+          break;
+      case 'z':
+          print("set scale factor (1.0 is orig size)> ");
+          read_options = 7;
           break;
       case 27: /* doesn't work */
           print( "ESC" );

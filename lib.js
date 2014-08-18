@@ -241,16 +241,22 @@
       return n;
     }
 
-    function secToHMS( sec ) {
+    function secToHMS( sec, expand ) {
       var m = Math.floor(sec / 60);
       var s = sec - m * 60;
       var h = Math.floor(m / 60);
       if ( h > 0 ) 
         m = m - h * 60;
-      return lz(h)+':'+lz(m)+':'+lz(s);
+
+      if ( expand )
+        return lz(h)+':'+lz(m)+':'+lz(s);
+      if ( h > 0 )
+        return h+':'+lz(m)+':'+lz(s);
+      return m+':'+lz(s);
     }
     exports.secToHMS = secToHMS;
 
+    // test
     //[47,87,247,1223,1247,4700,8743].forEach(function(x){println(x +"\t"+secToHMS(x));});
 
     // expects seconds from the Unix Epoch (not millisec)
@@ -307,6 +313,7 @@
     }
     exports.daynumToDate = daynumToDate;
 
+    // test
     //[735109,735110,735141].forEach(function(x){println(daynumToDate(x));});
 
 })();
