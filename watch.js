@@ -629,6 +629,7 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
         var delete_index = menu.indexFromPid(delete_pid);
         db.remove( {_id:menu.movies[delete_index]._id} );
         db.remove({lastMoviePid:{$exists:true}});
+        menu.lastMov = -1;
         menu.renormalizeUnwatchedPid();
         db.save();
         println( "\nMovie: \""+menu.movies[delete_index].name()+'" deleted permanently from '+config.movies_db_name );
