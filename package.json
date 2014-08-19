@@ -1,6 +1,6 @@
 {
   "name": "mplayermanager",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "commandline interface for mplayer that manages movie files",
   "main": "watch.js",
   "author": {

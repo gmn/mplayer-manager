@@ -288,8 +288,8 @@ debugger;
     {
       var watched = db.find( {watched:true} ).sort( {pid:1} );
       for ( var index = 0, length = watched.count(); index < length; index++ ) {
-        var name = watched._data[index].display_name ? watched._data[index].display_name : watched._data[index].file;
-        println( watched._data[index].pid +"\t"+ name );
+        var name = watched.rows[index].display_name ? watched.rows[index].display_name : watched.rows[index].file;
+        println( watched.rows[index].pid +"\t"+ name );
       }
       process.exit(0);
     } 
@@ -357,7 +357,7 @@ debugger;
 
       // get current displaying name 
       var res = db.find( {pid:arg1, $or:[{watched:false},{watched:{$exists:false}}]} );
-      var m = res._data[0];
+      var m = res.rows[0];
       var before = m.display_name ? m.display_name : m.file; 
 
       if ( !arg2 ) {
@@ -371,7 +371,7 @@ debugger;
 
       // report
       res = db.find( {pid:arg1,display_name:arg2} );
-      m = res._data[0];
+      m = res.rows[0];
       println( 'changed: "'+before+'" to: "'+m.display_name+'"' );
 
       process.exit(0);
@@ -389,7 +389,7 @@ debugger;
 
       // get current displaying name 
       var res = db.find( {pid:arg1, $or:[{watched:false},{watched:{$exists:false}}]} );
-      var m = res._data[0];
+      var m = res.rows[0];
       var before = m.file; 
 
       if ( !arg2 ) {
@@ -409,7 +409,7 @@ debugger;
 
       // report
       //res = db.find( {pid:arg1,file:arg2} );
-      //m = res._data[0];
+      //m = res.rows[0];
       println( 'changed: "'+before+'" to: "'+arg2+'"' );
 
       process.exit(0);
@@ -420,8 +420,8 @@ debugger;
     {
       var res = db.find( {sec_watched:{$exists:true}}).sort( {sec_watched:1} );
       var tot = 0;
-      for ( var i = 0, l = res._data.length; i < l; i++ ) {
-        var o = res._data[i];
+      for ( var i = 0, l = res.rows.length; i < l; i++ ) {
+        var o = res.rows[i];
         tot += o.sec_watched;
         var name = o.display_name ? o.display_name : o.file;
         var tab = o.watched ? '  w  ' : '     ';
@@ -440,8 +440,8 @@ debugger;
     {
       var do_secs = check_flag('-sec');
       var res = db.find( {secsToday:{$exists:true}}).sort( { daynum: -1 } );
-      for ( var i = 0, l = res._data.length; i < l; i++ ) {
-        var o = res._data[i];
+      for ( var i = 0, l = res.rows.length; i < l; i++ ) {
+        var o = res.rows[i];
         var time = !do_secs ? lib.secToHMS(o.secsToday) : o.secsToday;
         println( lib.daynumToDate(o.daynum) + "\t" + time );
       }
@@ -452,8 +452,8 @@ debugger;
     else if ( check_flag( '-lp' ) )
     {
       var res = db.find( {last_played:{$exists:true}} ).sort({last_played:1});
-      if ( res && res._data && res.length > 0 ) {
-        res._data.forEach(function(x,i){
+      if ( res && res.rows && res.length > 0 ) {
+        res.rows.forEach(function(x,i){
           var tab = x.watched ? '  w  ' : '     ';
           if ( menu.lastMov == x.pid ) 
             tab = '  L  ';

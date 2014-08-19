@@ -69,7 +69,7 @@
     println( "\n --> " + r.length + " matches found for: \""+line+"\"\n" );
 
     for ( var i = 0, l = r.length; i<l; i++ ) {
-      var o = r._data[i];
+      var o = r.rows[i];
       var tab = o.watched ? '  w  ' : '     ';
       if ( menu.lastMov == o.pid )
         tab = '  L  ';
@@ -177,20 +177,20 @@
     },
     highestWatchedPid: function() {
       var watched = db.find( {watched:true} ).sort( {pid:-1} ).limit(1);
-      return watched.length === 0 ? 0 : watched._data[0].pid;
+      return watched.length === 0 ? 0 : watched.rows[0].pid;
     },
     renormalizeUnwatchedPid: function( starting ) {
       var start_id = starting ? starting : 0;
       var res = db.find( {file:{$exists:true},$or:[{watched:false},{watched:{$exists:false}}]} ).sort( {pid:1} );
-      for ( var i = start_id, l = res._data.length; i<l; i++ ) {
-        db.update( {_id:res._data[i]._id}, {$set:{pid:i+1}} );
+      for ( var i = start_id, l = res.rows.length; i<l; i++ ) {
+        db.update( {_id:res.rows[i]._id}, {$set:{pid:i+1}} );
       }
     },
     renormalizeWatchedPid: function( starting ) {
       var start_id = starting ? starting : 0;
       var res = db.find( {watched:true,file:{$exists:true}} ).sort( {pid:1} );
-      for ( var i = start_id, l = res._data.length; i<l; i++ ) {
-        db.update( {_id:res._data[i]._id}, {$set:{pid:i+1}} );
+      for ( var i = start_id, l = res.rows.length; i<l; i++ ) {
+        db.update( {_id:res.rows[i]._id}, {$set:{pid:i+1}} );
       }
     }
   };
@@ -325,7 +325,7 @@ debugger;
       // keep tally of time watched per day
       var res = db.find( {secsToday:/.*/,daynum:lib.daynum()} );
     
-      var total_today = res.length === 0 ? 0 : res._data[0].secsToday;
+      var total_today = res.length === 0 ? 0 : res.rows[0].secsToday;
       total_today += total_sec_this_run;
       db.update( {secsToday:/.*/,daynum:lib.daynum()},{$set:{secsToday:total_today,daynum:lib.daynum()}}, {upsert:true} );
 
@@ -382,10 +382,10 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
     var i, index, len;
     var watched = db.find( {watched:true} ).sort( {pid:1} );
     for ( i = 0, index = watched_continue_index, len = watched.length; index < len && i < disp_rows; index++, i++ ) {
-      var t = watched._data[index].date_finished;
+      var t = watched.rows[index].date_finished;
       t = t ? " finished: " + t.substring(0,10) : '';
-      var name = watched._data[index].display_name ? watched._data[index].display_name : watched._data[index].file;
-      println( watched._data[index].pid + ' ' + name + t );
+      var name = watched.rows[index].display_name ? watched.rows[index].display_name : watched.rows[index].file;
+      println( watched.rows[index].pid + ' ' + name + t );
     }
     if ( i === disp_rows && watched.length > index ) {
       watched_continue_index = index;
@@ -484,8 +484,8 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
     // If movie has options, use those
     var options = '';
     var r = db.find({pid:pid,$or:[{watched:{$exists:false}},{watched:false}]});
-    if ( r._data && r._data[0] && r._data[0].opts ) {
-      options = r._data[0].opts;
+    if ( r.rows && r.rows[0] && r.rows[0].opts ) {
+      options = r.rows[0].opts;
     }
     
     // add in resume flag
@@ -598,18 +598,18 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
       } 
       else {
         var unwatch_index = -1;
-        for ( var i = 0, l = watched._data.length; i<l; i++ ) {
-          if ( watched._data[i].pid === unwatch_pid ) {
+        for ( var i = 0, l = watched.rows.length; i<l; i++ ) {
+          if ( watched.rows[i].pid === unwatch_pid ) {
             unwatch_index = i;
             break;
           } 
         }
         // set unwatched and update dateAdded, to effectively
         var new_pid = menu.highestUnwatchedPid() + 1;
-        db.update( {_id:watched._data[unwatch_index]._id}, {$set:{watched:false,added:db.now(),pid:new_pid}} );
+        db.update( {_id:watched.rows[unwatch_index]._id}, {$set:{watched:false,added:db.now(),pid:new_pid}} );
         menu.renormalizeWatchedPid();
         db.save();
-        var file = watched._data[unwatch_index].file;
+        var file = watched.rows[unwatch_index].file;
         reload_movies_list();
         println( "\n\""+file+'" marked unwatched and set to: ' + new_pid );
       }
@@ -711,8 +711,8 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
           break;
       case 'lp':
           var res = db.find( {last_played:{$exists:true},$or:[{watched:{$exists:false}},{watched:false}]} ).sort({last_played:-1}).limit(config.last_played_num);
-          if ( res && res._data && res.length > 0 ) {
-            var d = res._data;
+          if ( res && res.rows && res.length > 0 ) {
+            var d = res.rows;
             for ( var i = d.length - 1; i >= 0; i-- ) {
               println( (i+1)+"\t["+d[i].pid+"]\t"+trunc_string(d[i].display_name?d[i].display_name:d[i].file,50) + (d[i].resumeSec!==undefined?'  (@'+secToHMS(d[i].resumeSec)+')':'') );
             }
@@ -773,7 +773,7 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
     // setup last movie
     var lasmov = db.find({lastMoviePid:/.*/});
     if ( lasmov.length > 0 ) {
-      var lmpid = lasmov._data[0].lastMoviePid;
+      var lmpid = lasmov.rows[0].lastMoviePid;
       for ( var index = 0, ml = menu.movies.length; index < ml; index++ ) {
         if ( lmpid === menu.movies[index].pid ) {
           menu.lastMov = lmpid;
@@ -786,7 +786,7 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
     // setup last deleted
     var res = db.find({lastDeleted:/.*/});
     if ( res.length > 0 ) {
-      menu.lastDeleted = res._data[0].lastDeleted;
+      menu.lastDeleted = res.rows[0].lastDeleted;
     }
 
   } // reload_movies_list
