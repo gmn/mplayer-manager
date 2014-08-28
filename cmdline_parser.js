@@ -387,7 +387,7 @@ debugger;
         process.exit(0);
       }
 
-      // get current displaying name 
+      // get current name 
       var res = db.find( {pid:arg1, $or:[{watched:false},{watched:{$exists:false}}]} );
       var m = res.rows[0];
       var before = m.file; 
@@ -408,8 +408,6 @@ debugger;
       db.save();
 
       // report
-      //res = db.find( {pid:arg1,file:arg2} );
-      //m = res.rows[0];
       println( 'changed: "'+before+'" to: "'+arg2+'"' );
 
       process.exit(0);

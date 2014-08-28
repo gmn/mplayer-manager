@@ -26,6 +26,8 @@
     process.exit( code );
   }
 
+  function now() { return Math.round(Date.now()*0.001); }
+
   var queryable = require( 'queryable' );
   var db = null;
 
@@ -105,7 +107,7 @@
     var null_f = function() { return ''; };
     var dvd_f = function() { return that.dvd ? ' (-dvd is set)' : ''; };
     var opt_f = function() { return that.options ? ' (-opts "'+that.options+'")' : '' };
-    var last_f = function() { return that.lastMov !== -1 ? ' (['+that.lastMov+']'+trunc_string(that.movies[that.indexFromPid(that.lastMov)].file,36)+' @'+secToHMS(that.lastSec)+')' : '' };
+    var last_f = function() { return that.lastMov !== -1 ? ' (['+that.lastMov+']'+trunc_string(that.movies[that.indexFromPid(that.lastMov)].name(),36)+' @'+secToHMS(that.lastSec)+')' : '' };
     var out_f = function() { return config.vidplayer_silence ? ' (off)' : ' (on)' };
     var del_f = function() { return that.lastDeleted === '' ? '' : ' (last: "'+trunc_string(that.lastDeleted,40)+'")' };
     var scale_f = function() { return that.scale ? ' (scale: ' + that.scale + 'x)' : ' (1.0)'; };
@@ -268,6 +270,23 @@ debugger;
     if ( !lines || !(lines.length > 0) )
       return null;
 
+
+    // pause detection
+    var pause_string = '=====  PAUSE  =====';
+    var paused = (function look_for_pause(lines) {
+      var i = lines.length;
+      while ( --i >= 0 ) {
+        if ( lines[i].trim() === pause_string )
+          return true;
+        if ( lines.length - i > 3 )
+          break; // only do a few
+      }
+      return false;
+    })(lines);
+    if ( paused )
+      return false;
+
+
     do
     {
       var last_line = lines.shift();
@@ -283,9 +302,10 @@ debugger;
 
   function system( index, cmd, args_array )
   {
-    var start_sec = Math.round(Date.now()*0.001);
+    var start_sec = now();
     var end_sec = -1;
     var p = spawn( cmd, args_array, { env: process.env });
+    var pause_start = -1;
 
     p.stdout.on('data', function (data) {
       if ( !config.vidplayer_silence )
@@ -294,9 +314,17 @@ debugger;
       var sec = sec_from_mplayer_stream( data );
       if ( sec ) {
         if ( start_sec === -1 ) { 
-          start_sec = Math.round(Date.now()*0.001);
+          start_sec = now();
+        } else if ( pause_start !== -1 ) {
+          start_sec += now() - pause_start;
+          pause_start = -1;
+          print( '+--> resuming -->' );
         }
+
         menu.setLastSec( sec );
+      } else if ( sec === false ) { // paused
+        pause_start = now();
+        print( "\n --> paused <--" );
       }
     });
 
@@ -307,17 +335,21 @@ debugger;
 
     p.on('close', function (code) 
     {
-      end_sec = Math.round(Date.now()*0.001);
+      // check if paused when player exits
+      if ( pause_start !== -1 ) {
+        start_sec += now() - pause_start;
+        pause_start = -1;
+      }
+
+      end_sec = now();
       var total_sec_this_run = end_sec - start_sec;
-      var total_sec = (menu.movies[index].sec_watched ? menu.movies[index].sec_watched : 0) + total_sec_this_run;
+      if ( total_sec_this_run < 0 ) 
+        total_sec_this_run = 0;
+      var total_sec = total_sec_this_run +
+        (menu.movies[index].sec_watched ? menu.movies[index].sec_watched : 0);
 
-      println('Child process exited with code: ' + code);
-      println('Last time watched: ' + secToHMS(menu.lastSec) );
-      println('Watched '+secToHMS(total_sec_this_run) +' this run for '+secToHMS(total_sec) + ' total viewed time' );
-      menu.print();
-      rl.prompt();
-
-      menu.movies[index].resumeSec = menu.lastSec; // set this key for this movie
+      // set this key for this movie
+      menu.movies[index].resumeSec = menu.lastSec; 
 
       // update movie stats
       db.update( {_id:menu.movies[index]._id}, {'$set':{'resumeSec':menu.lastSec,'sec_watched':total_sec}} );
@@ -331,6 +363,14 @@ debugger;
 
       db.save();
       reload_movies_list(); // synchronizes menu from db
+
+      ///// OUTPUT /////
+      println('Child process exited with code: ' + code);
+      println('Last time watched: ' + secToHMS(menu.lastSec) );
+      println('Watched: '+secToHMS(total_sec_this_run) +' this run for '+secToHMS(total_sec) + " total this file.\nTotal today overall: " + secToHMS(total_today) );
+      menu.print();
+      rl.prompt();
+      //////////////////
 
 /*
 FIXME: having two copies of this meta-data laying around causes confusion: {menu.movies & db.master}
@@ -490,7 +530,7 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
     
     // add in resume flag
     if ( resume_sec && options ) {
-      options += ' -ss ' + resume_sec;
+      options = ' -ss ' + resume_sec + ' ' + options;
     } else if ( resume_sec ) {
       options = '-ss ' + resume_sec;
     }
@@ -506,7 +546,7 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
     }
 
     if ( options ) {
-      args = args.concat( options.split(/[\s]+/) );
+      args = args.concat( options.trim().split(/[\s]+/) );
     }
 
     args.push( fullpath );

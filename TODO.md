@@ -1,9 +1,13 @@
 mplayermanager todo list
 ========================
 
-- more robust lock function (tries multiple dirs)
+* more robust lock function (tries multiple dirs)
   - just use config_dir
-  - save lock_dir in config
+  - set lock_dir property in config object
+  - what about multiple instances running different configs???
+      (instead of using random lockfile name, hash configs-fullpath
+      therefor, it's one set lockfile name per instance)
+  - fine-tune which cmdline functions get locked out and which don't
 
 * - Edit options for current file
     - so that when you hit 'o', the opts for the last file are filled in
@@ -11,11 +15,17 @@ mplayermanager todo list
   - current file is: "..."
   - play current file: 'l'
 
+* 'watch -a <filename> [file2] [...] -opts "-v -aid 1 --fs -xy 1.33" -dir <dirname>'
+
+
 // --fs, --speed=<0.01-100>, -aid <N>, -sid <N>, -softvol-max 1000 -volume 50, -xy <0.01-100>
+--audiofile=<filename>
+--audiofile-cache=<kBytes>
+--subfile=<filename>
+dvd://${CHAPTER} -dvd-device
+
 
 - organize cmdline switches into those that must be blocked and those that do not need to block (eg. readonly)
-
-- 'watch -a <filename> [file2] [...] -opts "-v -aid 1 --fs -xy 1.33" -dir <dirname>'
 
 README STUFF:
 - "It keeps track of every file and where you left off in each file, so you can
@@ -107,5 +117,6 @@ X watch <exact match> // if there's an exact match it plays the file
 X explicit video size modifier menu option
 X add the movie, then play the movie, all in one cmdline command
 X put on a lock when running, so if external shell adds file, it prints an error
+X catch mplayer PAUSE, and figure that into time calculations
 
 
