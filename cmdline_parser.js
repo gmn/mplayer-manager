@@ -36,9 +36,9 @@
 
 
   // flags checked for (and must be skipped later) in check_cmdline
-  var early_flags = ['-c','-k','-nc'];
+  var early_flags = ['-c','-k','-nc','-f','--fullscreen','-fs','--fs'];
 
-  function check_cmdline( config )
+  function check_cmdline( config, menu )
   {
     function print_help()
     {
@@ -62,6 +62,7 @@
       p( '-pc               print current config' );
       p( '-pm               print out movies db' );
       p( '-lp               print last played' );
+      p( '--fullscreen      start fullscreen. (syn: -f, -fs, --fs)' );
       process.exit(0);
     }
 
@@ -87,6 +88,11 @@ debugger;
 
     if ( (p=check_flag('-nc')) ) {
       config.config_path = undefined;
+      process.argv.splice(p,1);
+    }
+
+    if ( (p=check_flag('-f')) || (p=check_flag('--fullscreen')) || (p=check_flag('-fs')) || (p=check_flag('--fs')) ) {
+      menu.fullscreen = true;
       process.argv.splice(p,1);
     }
 
@@ -292,7 +298,7 @@ debugger;
         println( watched.rows[index].pid +"\t"+ name );
       }
       process.exit(0);
-    } 
+    }
 
     // -d dump
     else if ( check_flag('-d') ) {

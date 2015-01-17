@@ -211,7 +211,7 @@
   var cmdline_parser = require( './cmdline_parser.js' );
 
   // handle command line flags that affect config 
-  cmdline_parser.check_cmdline( config );
+  cmdline_parser.check_cmdline( config, menu );
 
   // if default conf path exist, read the config from there
   config_helper.read_config( config );
@@ -367,7 +367,7 @@ debugger;
       ///// OUTPUT /////
       println('Child process exited with code: ' + code);
       println('Last time watched: ' + secToHMS(menu.lastSec) );
-      println('Watched: '+secToHMS(total_sec_this_run) +' this run for '+secToHMS(total_sec) + " total this file.\nTotal today overall: " + secToHMS(total_today) );
+      println('Watched: '+secToHMS(total_sec_this_run) +' this run for '+secToHMS(total_sec) + " this file.\nToday overall: " + secToHMS(total_today) );
       menu.print();
       rl.prompt();
       //////////////////

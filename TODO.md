@@ -23,6 +23,9 @@ mplayermanager todo list
 --audiofile-cache=<kBytes>
 --subfile=<filename>
 dvd://${CHAPTER} -dvd-device
+br://${CHAPTER} -bluray-device
+--aspect=1.7777
+--aspect=16/9
 
 
 - organize cmdline switches into those that must be blocked and those that do not need to block (eg. readonly)
