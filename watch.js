@@ -160,7 +160,7 @@
     setLastDeleted: function(mvname) {
       this.lastDeleted = mvname;
       db.update({'lastDeleted':/.*/},{'$set':{'lastDeleted':mvname}},{'upsert':true});
-      db.save();
+      db.save( {} /* hack */);
     },
     indexFromPid: function(pid) {
       for ( var i = 0, l = this.movies.length; i<l; i++ ) {
@@ -361,7 +361,7 @@ debugger;
       total_today += total_sec_this_run;
       db.update( {secsToday:/.*/,daynum:lib.daynum()},{$set:{secsToday:total_today,daynum:lib.daynum()}}, {upsert:true} );
 
-      db.save();
+      db.save( {} /* save */ );
       reload_movies_list(); // synchronizes menu from db
 
       ///// OUTPUT /////
@@ -519,7 +519,7 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
     }
 
     // save after updates
-    db.save();
+    db.save( {} /* save */ );
 
     // If movie has options, use those
     var options = '';
@@ -614,7 +614,7 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
           menu.renormalizeUnwatchedPid();
           if ( r === 1 ) { 
             db.remove({lastMoviePid:{$exists:true}});
-            db.save(); 
+            db.save( {} /* save */ );
             menu.lastMov = -1;
             reload_movies_list() ;
             println( "done." ); 
@@ -648,7 +648,7 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
         var new_pid = menu.highestUnwatchedPid() + 1;
         db.update( {_id:watched.rows[unwatch_index]._id}, {$set:{watched:false,added:db.now(),pid:new_pid}} );
         menu.renormalizeWatchedPid();
-        db.save();
+        db.save( {} /* save */ );
         var file = watched.rows[unwatch_index].file;
         reload_movies_list();
         println( "\n\""+file+'" marked unwatched and set to: ' + new_pid );
@@ -671,7 +671,7 @@ FIXME: having two copies of this meta-data laying around causes confusion: {menu
         db.remove({lastMoviePid:{$exists:true}});
         menu.lastMov = -1;
         menu.renormalizeUnwatchedPid();
-        db.save();
+        db.save( {} /* save */ );
         println( "\nMovie: \""+menu.movies[delete_index].name()+'" deleted permanently from '+config.movies_db_name );
         menu.setLastDeleted( menu.movies[delete_index].name() );
         reload_movies_list();
