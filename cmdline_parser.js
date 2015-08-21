@@ -199,7 +199,7 @@ debugger;
 
       // take gaps out of Unwatched pid in db
       menu.renormalizeUnwatchedPid();
-      db.save()
+      db.save( {} /* hack */ )
 
       process.exit(0);
     }
@@ -230,7 +230,7 @@ debugger;
 
         var new_pid = menu.highestUnwatchedPid() + 1;
         db.insert( {file:filename, dir:dirname, added:db.now(), pid: new_pid} );
-        db.save();
+        db.save( {} /* hack */ );
         dirname = dirname ? ', dir: "'+dirname+'"' : '';
         println( 'file: "' + filename + '"'+dirname+' added' );
         process.exit(0);
@@ -346,7 +346,7 @@ debugger;
       println( 'setting directory for file "' + menu.movies[index].file +'" from "' + menu.movies[index].dir + '" to "' + new_name + '"' );
 
       db.update( {_id: menu.movies[index]._id}, {'$set':{"dir":new_name}} );
-      db.save();
+      db.save( {} /* hack */ );
       process.exit(0);
     }
 
@@ -373,7 +373,7 @@ debugger;
       
       // change
       db.update( {pid:arg1, $or:[{watched:false},{watched:{$exists:false}}]} , {'$set':{display_name:arg2}} );
-      db.save();
+      db.save( {} /* hack */ );
 
       // report
       res = db.find( {pid:arg1,display_name:arg2} );
@@ -411,7 +411,7 @@ debugger;
         process.exit(0);
       }
 
-      db.save();
+      db.save( {} /* hack */ );
 
       // report
       println( 'changed: "'+before+'" to: "'+arg2+'"' );
